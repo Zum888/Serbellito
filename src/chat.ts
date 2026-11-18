@@ -36,7 +36,7 @@ export function interpret(input: string): BuiltReply {
     return { kind: 'unbilled', text: '' }
   }
 
-  if (has(text, 'opinion de cumplimiento', 'opinion del cumplimiento', 'calificacion ante el sat', 'buena calificacion', 'opinion de cumplimiento')) {
+  if (has(text, 'opinion de cumplimiento', 'opinion del cumplimiento', 'calificacion ante el sat', 'buena calificacion')) {
     return {
       kind: 'fiscal',
       fiscal: 'opinion',

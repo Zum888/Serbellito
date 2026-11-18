@@ -153,6 +153,7 @@ function loadState(): AppState {
 
 type Action =
   | { type: 'reset' }
+  | { type: 'clear-chat' }
   | { type: 'add-message'; message: ChatMessage }
   | { type: 'replace-message'; id: string; message: ChatMessage }
   | { type: 'toggle-sidebar' }
@@ -186,6 +187,8 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'reset':
       return freshState()
+    case 'clear-chat':
+      return { ...state, messages: [], guided: null, route: 'inicio', reconcileId: null, detail: null, detailBack: null }
     case 'add-message':
       return { ...state, messages: [...state.messages, action.message] }
     case 'replace-message':
@@ -425,6 +428,7 @@ type StoreValue = {
   simulateComplemento: (invoiceId: string) => void
   importMovements: (movements: Movement[]) => void
   reset: () => void
+  newChat: () => void
   startGuidedFlow: () => void
   uploadOpen: boolean
   uploadFile: File | null
@@ -546,6 +550,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         epoch.current += 1
         localStorage.removeItem(KEY)
         dispatch({ type: 'reset' })
+      },
+      newChat: () => {
+        epoch.current += 1
+        dispatch({ type: 'clear-chat' })
       },
       startGuidedFlow: () => {
         const phase = state.guided?.phase

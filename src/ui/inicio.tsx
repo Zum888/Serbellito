@@ -306,7 +306,7 @@ function FlowButton() {
 }
 
 export function Inicio() {
-  const { state, ask, openUpload } = useStore()
+  const { state, ask, openUpload, newChat } = useStore()
   const started = state.messages.some((message) => message.role === 'user')
   const end = useRef<HTMLDivElement>(null)
 
@@ -348,7 +348,10 @@ export function Inicio() {
         <div ref={end} />
       </div>
       <div className="dock">
-        <div className="flow-launch">
+        <div className="flow-launch chat-tools">
+          <button type="button" className="btn" data-testid="nuevo-chat" onClick={newChat}>
+            Nuevo chat
+          </button>
           <FlowButton />
         </div>
         <Composer />

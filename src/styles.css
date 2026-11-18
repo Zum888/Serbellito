@@ -355,6 +355,7 @@ tr.click:hover { background: #fafafa; }
 button:disabled { opacity: 0.45; cursor: default; }
 .flow-launch { margin-top: 14px; }
 .dock .flow-launch { margin: 0 auto 8px; width: min(720px, 100%); }
+.chat-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .invoice-table { min-width: 880px; }
 .status-col { width: 92px; text-align: center; }
 td.status-col { vertical-align: middle; }
