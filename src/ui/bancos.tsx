@@ -1,4 +1,4 @@
-import { CATEGORIES, CATEGORY_SHORT, accountLabel, selectedAccountId } from '../catalog'
+import { accountLabel, categoryChoices, categoryLabel, partyByRfc, selectedAccountId } from '../catalog'
 import {
   COMPLEMENTO_LABEL,
   PAGO_LABEL,
@@ -7,15 +7,51 @@ import {
   bankTotals,
   filterMovements,
   linkedInvoices,
+  movementRfc,
   movementSentences,
   paymentStatus,
 } from '../domain'
+import { useState } from 'react'
 import { formatDate, money } from '../format'
 import { EMPTY_BANK_FILTERS, useStore } from '../store'
 import type { Category, Movement } from '../types'
 import { AccountChips } from './accounts'
 import { MxDate } from './fields'
 import { PartyLines } from './party'
+
+function CategorySelect({ movement, labelled }: { movement: Movement; labelled?: boolean }) {
+  const { state, setCategory } = useStore()
+  const [offer, setOffer] = useState(false)
+  const choices = categoryChoices([...state.categoryRules.map((rule) => rule.category), movement.category])
+  const rfc = movementRfc(movement, state.invoices, state.applications)
+  const side: 'gasto' | 'ingreso' = movement.abono > 0 && movement.cargo === 0 ? 'ingreso' : 'gasto'
+  const rule = rfc ? state.categoryRules.find((item) => item.rfc === rfc) : undefined
+  const locked = Boolean(rfc && rule?.category === movement.category)
+  return (
+    <div className="cat-edit" onClick={(event) => event.stopPropagation()}>
+      <select
+        aria-label={labelled ? 'Categoría' : `Categoría de ${movement.concept}`}
+        value={movement.category}
+        onChange={(event) => {
+          setCategory(movement.id, event.target.value as Category)
+          setOffer(true)
+        }}
+      >
+        {choices.map((category) => (
+          <option key={category} value={category}>
+            {categoryLabel(category)}
+          </option>
+        ))}
+      </select>
+      {rfc && offer && !locked && (
+        <button type="button" className="always-rule" onClick={() => setCategory(movement.id, movement.category, { rfc, side })}>
+          Usar siempre para este RFC
+        </button>
+      )}
+      {labelled && locked && <span className="always-on">Siempre para {partyByRfc(rfc!)?.subnombre ?? 'este RFC'}</span>}
+    </div>
+  )
+}
 
 function filtersActive(filters: { query: string; category: string; reconciliation: string; from: string; to: string }) {
   return Boolean(filters.query || filters.from || filters.to || filters.category !== 'todas' || filters.reconciliation !== 'todas')
@@ -72,9 +108,9 @@ export function Bancos() {
           <span>Categoría</span>
           <select value={filters.category} onChange={(event) => setBankFilters({ ...filters, category: event.target.value })}>
             <option value="todas">Todas</option>
-            {CATEGORIES.map((category) => (
+            {categoryChoices([...state.categoryRules.map((rule) => rule.category), ...state.movements.map((movement) => movement.category)]).map((category) => (
               <option key={category} value={category}>
-                {CATEGORY_SHORT[category]}
+                {categoryLabel(category)}
               </option>
             ))}
           </select>
@@ -137,7 +173,7 @@ export function Bancos() {
 }
 
 function MovementRow({ movement }: { movement: Movement }) {
-  const { state, openDetail, setCategory } = useStore()
+  const { state, openDetail } = useStore()
   const links = linkedInvoices(movement, state.invoices, state.applications)
   return (
     <tr className="click" onClick={() => openDetail({ type: 'movement', id: movement.id })}>
@@ -152,18 +188,7 @@ function MovementRow({ movement }: { movement: Movement }) {
       <td>{accountLabel(movement.accountId)}</td>
       <td className="num">{movement.cargo > 0 ? money(movement.cargo) : money(movement.abono)}</td>
       <td>
-        <select
-          aria-label={`Categoría de ${movement.concept}`}
-          value={movement.category}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) => setCategory(movement.id, event.target.value as Category)}
-        >
-          {CATEGORIES.map((category) => (
-            <option key={category} value={category}>
-              {CATEGORY_SHORT[category]}
-            </option>
-          ))}
-        </select>
+        <CategorySelect movement={movement} />
       </td>
       <td>
         {links.length === 0 && '—'}
@@ -186,7 +211,7 @@ function MovementRow({ movement }: { movement: Movement }) {
 }
 
 function MovementDetail({ id }: { id: string }) {
-  const { state, closeDetail, openDetail, openReconcile, undoReconcile, setCategory } = useStore()
+  const { state, closeDetail, openDetail, openReconcile, undoReconcile } = useStore()
   const movement = state.movements.find((item) => item.id === id)
   if (!movement) {
     return (
@@ -217,13 +242,7 @@ function MovementDetail({ id }: { id: string }) {
       </div>
       <label className="field">
         <span>Categoría</span>
-        <select aria-label="Categoría" value={movement.category} onChange={(event) => setCategory(movement.id, event.target.value as Category)}>
-          {CATEGORIES.map((category) => (
-            <option key={category} value={category}>
-              {CATEGORY_SHORT[category]}
-            </option>
-          ))}
-        </select>
+        <CategorySelect movement={movement} labelled />
       </label>
       {links.length > 0 && (
         <div className="stack">

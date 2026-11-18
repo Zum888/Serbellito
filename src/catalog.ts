@@ -1,4 +1,4 @@
-import type { Category } from './types'
+import type { Category, CategoryRule, KnownCategory } from './types'
 import { norm } from './format'
 
 export const COMPANY = {
@@ -19,7 +19,7 @@ export const ACCOUNTS = [
 
 export type AccountId = (typeof ACCOUNTS)[number]['id']
 
-export const CATEGORIES: Category[] = [
+export const CATEGORIES: KnownCategory[] = [
   'mercancía',
   'empaques',
   'fletes',
@@ -29,7 +29,15 @@ export const CATEGORIES: Category[] = [
   'traspasos entre cuentas propias',
 ]
 
-export const CATEGORY_SHORT: Record<Category, string> = {
+export const EXPENSE_CATEGORIES: KnownCategory[] = ['mercancía', 'empaques', 'fletes', 'combustible', 'comisiones']
+
+export const INCOME_CATEGORIES: KnownCategory[] = ['cobros de clientes']
+
+export const EXAMPLE_RULES: CategoryRule[] = [
+  { rfc: 'LOC110708B33', side: 'gasto', category: 'pago por construcción' },
+]
+
+export const CATEGORY_SHORT: Record<KnownCategory, string> = {
   mercancía: 'Mercancía',
   empaques: 'Empaques',
   fletes: 'Fletes',
@@ -231,6 +239,20 @@ export function accountLabel(id: string): string {
   const account = accountById(id)
   if (!account) return id
   return `${account.bank} · ${account.mask}`
+}
+
+export function categoryLabel(category: string): string {
+  return CATEGORY_SHORT[category as KnownCategory] ?? category
+}
+
+export function categoryChoices(extra: string[]): string[] {
+  const known = new Set<string>(CATEGORIES)
+  const more = extra.filter((item) => item && !known.has(item))
+  return [...CATEGORIES, ...new Set(more)]
+}
+
+export function partyByRfc(rfc: string): Party | undefined {
+  return [...SUPPLIERS, ...CUSTOMERS].find((party) => party.rfc === rfc)
 }
 
 export function partyByName(name: string): Party | undefined {

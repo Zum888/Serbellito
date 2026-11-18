@@ -264,9 +264,40 @@ function Composer() {
   )
 }
 
+const FLOW_CHECKS = ['Estado de cuenta recibido', 'Movimientos leídos', 'Facturas con el mismo monto', 'Coincidencias listas']
+
+function FlowStage() {
+  const { state } = useStore()
+  const phase = state.guided?.phase
+  const checks = state.guided?.checks ?? 0
+  return (
+    <div className="stage-wrap">
+      <div className="stage flow-stage" data-testid="flujo-panel">
+        <div className={`drop-well${phase === 'drop' ? ' dropping' : ''}`}>
+          <div className="file-chip">
+            <strong>estado-de-cuenta.csv</strong>
+            <span>BBVA · bodega</span>
+          </div>
+        </div>
+        {phase === 'checklist' && (
+          <ol className="check-list" data-testid="flujo-checks">
+            {FLOW_CHECKS.map((label, index) => (
+              <li key={label} className={checks > index ? 'on' : ''}>
+                <span className="check-mark" />
+                {label}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function FlowButton() {
   const { state, startGuidedFlow } = useStore()
-  const busy = state.guided?.phase === 'chat' || state.guided?.phase === 'running'
+  const phase = state.guided?.phase
+  const busy = phase === 'drop' || phase === 'checklist' || phase === 'running'
   return (
     <button type="button" className="btn" data-testid="flujo-completo" disabled={busy} onClick={startGuidedFlow}>
       Flujo completo
@@ -282,6 +313,8 @@ export function Inicio() {
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' })
   }, [state.messages])
+
+  if (state.guided?.phase === 'drop' || state.guided?.phase === 'checklist') return <FlowStage />
 
   if (!started) {
     return (

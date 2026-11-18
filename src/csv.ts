@@ -1,7 +1,7 @@
 import { ACCOUNTS } from './catalog'
 import { duplicateStatus, suggestMovement } from './domain'
 import { norm, uid } from './format'
-import type { Application, Invoice, Movement } from './types'
+import type { Application, CategoryRule, Invoice, Movement } from './types'
 
 export type ParsedDraft = {
   date: string
@@ -132,6 +132,7 @@ export function draftsToMovements(
   applications: Application[],
   origin: 'ejemplo' | 'csv',
   sourceName: string,
+  rules: CategoryRule[] = [],
 ): Movement[] {
   return rows
     .filter((row) => row.include && row.status !== 'duplicado')
@@ -150,6 +151,7 @@ export function draftsToMovements(
         },
         invoices,
         applications,
+        rules,
       ),
     )
 }

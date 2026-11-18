@@ -44,11 +44,8 @@ function StatusDot({ done, fresh, label, detail }: { done: boolean; fresh: boole
 
 export function Facturas() {
   const { state, setInvoiceTab, setInvoiceFilters, openDetail, openReconcile, navigate } = useStore()
-  const currentId = state.guided?.phase === 'running' ? state.guided.order[state.guided.step - 1] : undefined
-  useEffect(() => {
-    if (!currentId) return
-    document.querySelector(`[data-guided-id="${currentId}"]`)?.scrollIntoView({ block: 'nearest' })
-  }, [currentId])
+  const guided = state.guided
+  const freshIds = new Set(guided?.phase === 'running' ? guided.order.slice(Math.max(0, guided.step - 8), guided.step) : [])
   useEffect(() => {
     if (state.guided?.phase !== 'done') return
     document.querySelector('[data-testid="sin-relacion"]')?.scrollIntoView({ block: 'start' })
@@ -73,6 +70,26 @@ export function Facturas() {
           Necesita tu atención · {pending}
         </button>
       </header>
+      {guided?.phase === 'running' && freshIds.size > 0 && (
+        <div className="fresh-panel" data-testid="recien">
+          <p>Acaban de coincidir</p>
+          <ul>
+            {[...freshIds].map((id) => {
+              const invoice = state.invoices.find((item) => item.id === id)
+              if (!invoice) return null
+              const flow = visibleFlow(invoice, state.applications, guided)
+              return (
+                <li key={id} className="fresh-chip">
+                  <span>{invoice.folio}</span>
+                  {flow.steps.map((step) => (
+                    <StatusDot key={step.key} done={step.done} fresh={step.done} label={STEP_LABEL[step.key]} detail={step.text} />
+                  ))}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
       <div className="tabs">
         <button type="button" className={state.invoiceTab === 'recibidas' ? 'on' : ''} onClick={() => setInvoiceTab('recibidas')}>
           Recibidas
@@ -170,8 +187,8 @@ export function Facturas() {
             </thead>
             <tbody>
               {rows.map((invoice) => {
-                const flow = visibleFlow(invoice, state.applications, state.guided)
-                const fresh = currentId === invoice.id
+                const flow = visibleFlow(invoice, state.applications, guided)
+                const fresh = freshIds.has(invoice.id)
                 return (
                   <tr
                     key={invoice.id}

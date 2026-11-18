@@ -63,6 +63,17 @@ export function IconArrow() {
   )
 }
 
+export function IconPeople() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="9" cy="8" r="2.2" />
+      <circle cx="15.5" cy="9" r="1.8" />
+      <path d="M4.5 18.5c.6-2.4 2.4-3.6 4.5-3.6s3.9 1.2 4.5 3.6" />
+      <path d="M13 15.2c1.3-.5 2.6-.4 4 .4 1 .6 1.7 1.6 2 2.9" />
+    </svg>
+  )
+}
+
 export function IconPanel() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

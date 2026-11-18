@@ -130,7 +130,7 @@ export function UploadDialog() {
 
   function confirm() {
     if (phase.name !== 'preview') return
-    const drafted = draftsToMovements(phase.rows, state.invoices, state.applications, phase.origin, phase.fileName)
+    const drafted = draftsToMovements(phase.rows, state.invoices, state.applications, phase.origin, phase.fileName, state.categoryRules)
     const known = new Set(state.movements.map((movement) => fingerprint(movement)))
     const fresh = drafted.filter((movement) => !known.has(fingerprint(movement)))
     importMovements(fresh)

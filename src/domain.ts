@@ -4,7 +4,9 @@ import type {
   Application,
   AttentionItem,
   Category,
+  CategoryRule,
   Complemento,
+  GuidedFlow,
   Invoice,
   Movement,
   PaymentStatus,
@@ -164,17 +166,14 @@ export function suggestMovement(
   draft: Omit<Movement, 'category' | 'reconciliation' | 'suggestionIds'>,
   invoices: Invoice[],
   applications: Application[],
+  rules: CategoryRule[] = [],
 ): Movement {
   const concept = norm(draft.concept)
-  let category: Category = draft.abono > 0 ? 'cobros de clientes' : 'mercancía'
   if (concept.includes('traspaso') || concept.includes('cuenta propia')) {
     return { ...draft, category: 'traspasos entre cuentas propias', reconciliation: 'no_requiere', suggestionIds: [] }
   }
   if (concept.includes('comision')) {
     return { ...draft, category: 'comisiones', reconciliation: 'no_requiere', suggestionIds: [] }
-  }
-  if (concept.includes('gasolina') || concept.includes('combustible') || concept.includes('diesel') || concept.includes('pemex')) {
-    category = 'combustible'
   }
 
   const payment = paymentOf(draft)
@@ -182,8 +181,13 @@ export function suggestMovement(
   const parties = direction === 'recibida' ? SUPPLIERS : CUSTOMERS
   const party = bestParty(draft.concept, parties)
   const partyName = party?.name ?? null
-  if (party && category === 'mercancía') category = party.category
-  if (party && category === 'cobros de clientes' && direction === 'recibida') category = party.category
+  const ruled = party ? rules.find((rule) => rule.rfc === party.rfc) : undefined
+  let category: Category = ruled?.category ?? (draft.abono > 0 ? 'cobros de clientes' : 'mercancía')
+  if (!ruled && (concept.includes('gasolina') || concept.includes('combustible') || concept.includes('diesel') || concept.includes('pemex'))) {
+    category = 'combustible'
+  }
+  if (!ruled && party && category === 'mercancía') category = party.category
+  if (!ruled && party && category === 'cobros de clientes' && direction === 'recibida') category = party.category
 
   if (!partyName || payment <= 0) {
     return { ...draft, category, reconciliation: 'sin_coincidencia', suggestionIds: [] }
@@ -571,10 +575,28 @@ export function movementAmount(movement: Pick<Movement, 'cargo' | 'abono'>): num
   return movement.cargo > 0 ? movement.cargo : movement.abono
 }
 
-export function categoryAmount(movements: Movement[], category: Category, accountId: string): number {
-  return movements
-    .filter((movement) => movement.category === category && movement.accountId === accountId)
-    .reduce((sum, movement) => sum + movementAmount(movement), 0)
+export function categoryAmount(movements: Movement[], category: string): number {
+  return movements.filter((movement) => movement.category === category).reduce((sum, movement) => sum + movementAmount(movement), 0)
+}
+
+export function movementRfc(movement: Movement, invoices: Invoice[], applications: Application[]): string | null {
+  const linked = linkedInvoices(movement, invoices, applications)
+  if (linked[0]?.rfc) return linked[0].rfc
+  const parties = movement.abono > 0 && movement.cargo === 0 ? CUSTOMERS : SUPPLIERS
+  return bestParty(movement.concept, parties)?.rfc ?? null
+}
+
+export type PartyLedger = { rfc: string; name: string; pending: number }
+
+export function partyLedgers(invoices: Invoice[], applications: Application[], direction: 'recibida' | 'emitida'): PartyLedger[] {
+  const map = new Map<string, PartyLedger>()
+  for (const invoice of invoices) {
+    if (invoice.direction !== direction || invoice.vigencia !== 'vigente') continue
+    const current = map.get(invoice.rfc) ?? { rfc: invoice.rfc, name: invoice.name, pending: 0 }
+    current.pending += pendingBalance(invoice, applications)
+    map.set(invoice.rfc, current)
+  }
+  return [...map.values()].sort((a, b) => b.pending - a.pending || a.name.localeCompare(b.name, 'es-MX'))
 }
 
 export function bankTotals(movements: Movement[], accountId: string): { ingresos: number; gastos: number } {
@@ -633,7 +655,7 @@ export function movementsWithoutRelation(movements: Movement[], applications: Ap
 export function visibleFlow(
   invoice: Invoice,
   applications: Application[],
-  guided: { phase: 'chat' | 'running' | 'done'; order: string[]; step: number } | null,
+  guided: GuidedFlow | null,
 ): { complete: boolean; steps: FlowStep[] } {
   const flow = invoiceFlow(invoice, applications)
   if (guided?.phase !== 'running') return flow

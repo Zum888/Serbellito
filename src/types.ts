@@ -5,7 +5,7 @@ export type ComplementoStatus = 'no_aplica' | 'pendiente' | 'recibido'
 export type Reconciliation = 'sin_coincidencia' | 'por_revisar' | 'confirmada' | 'no_requiere'
 export type PaymentStatus = 'sin_pago' | 'parcial' | 'pagada'
 
-export type Category =
+export type KnownCategory =
   | 'mercancía'
   | 'empaques'
   | 'fletes'
@@ -13,6 +13,14 @@ export type Category =
   | 'cobros de clientes'
   | 'comisiones'
   | 'traspasos entre cuentas propias'
+
+export type Category = KnownCategory | (string & {})
+
+export type CategoryRule = {
+  rfc: string
+  side: 'gasto' | 'ingreso'
+  category: string
+}
 
 export type Invoice = {
   id: string
@@ -63,7 +71,7 @@ export type Complemento = {
   amount: number
 }
 
-export type RouteName = 'inicio' | 'bancos' | 'facturas' | 'categorias'
+export type RouteName = 'inicio' | 'bancos' | 'facturas' | 'categorias' | 'personas'
 
 export type Detail = { type: 'invoice' | 'movement'; id: string }
 
@@ -117,14 +125,16 @@ export type ChatMessage = {
 }
 
 export type GuidedFlow = {
-  phase: 'chat' | 'running' | 'done'
+  phase: 'drop' | 'checklist' | 'running' | 'done'
   order: string[]
+  checks: number
   step: number
 }
 
 export type AppState = {
   version: 2
   guided: GuidedFlow | null
+  categoryRules: CategoryRule[]
   messages: ChatMessage[]
   movements: Movement[]
   invoices: Invoice[]

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { selectedAccountId } from './catalog'
+import { EXAMPLE_RULES, selectedAccountId } from './catalog'
 import { interpret } from './chat'
 import { fingerprint, guidedOrder } from './domain'
 import { todayIso, uid } from './format'
@@ -9,6 +9,7 @@ import type {
   AppState,
   BankFilters,
   Category,
+  CategoryRule,
   ChatAction,
   ChatMessage,
   Detail,
@@ -40,10 +41,17 @@ export const EMPTY_INVOICE_FILTERS: InvoiceFilters = {
   to: '',
 }
 
+function upsertRule(rules: CategoryRule[], rule: CategoryRule): CategoryRule[] {
+  const category = rule.category.trim()
+  if (!rule.rfc || !category) return rules
+  return [...rules.filter((item) => item.rfc !== rule.rfc), { rfc: rule.rfc, side: rule.side, category }]
+}
+
 function freshState(): AppState {
   return {
     version: 2,
     guided: null,
+    categoryRules: EXAMPLE_RULES,
     messages: [],
     movements: SEED.movements,
     invoices: SEED.invoices,
@@ -68,7 +76,18 @@ function loadState(): AppState {
     const parsed = JSON.parse(raw) as AppState
     if (parsed.version !== 2 || parsed.invoices?.length !== 100 || !Array.isArray(parsed.movements)) return freshState()
     if (parsed.invoices.some((invoice) => !invoice.usoCfdi || !invoice.formaPago)) return freshState()
-    if (!parsed.guided || !Array.isArray(parsed.guided.order) || parsed.guided.phase === 'chat') parsed.guided = null
+    if (!Array.isArray(parsed.categoryRules)) parsed.categoryRules = EXAMPLE_RULES
+    const phase = parsed.guided?.phase as string | undefined
+    if (
+      !parsed.guided ||
+      !Array.isArray(parsed.guided.order) ||
+      typeof parsed.guided.checks !== 'number' ||
+      phase === 'chat' ||
+      phase === 'drop' ||
+      phase === 'checklist'
+    ) {
+      parsed.guided = null
+    }
     return parsed
   } catch {
     return freshState()
@@ -91,15 +110,15 @@ type Action =
   | { type: 'toggle-attention' }
   | { type: 'select-account'; accountId: string }
   | { type: 'open-category'; category: Category }
-  | { type: 'set-category'; movementId: string; category: Category }
+  | { type: 'set-category'; movementId: string; category: Category; always?: { rfc: string; side: 'gasto' | 'ingreso' } }
+  | { type: 'save-rule'; rfc: string; side: 'gasto' | 'ingreso'; category: string }
   | { type: 'confirm'; movementId: string; invoiceIds: string[] }
   | { type: 'undo'; movementId: string }
   | { type: 'complemento'; invoiceId: string }
   | { type: 'import'; movements: Movement[] }
   | { type: 'party'; direction: 'recibida' | 'emitida'; name: string }
   | { type: 'guided-arm'; order: string[] }
-  | { type: 'guided-run' }
-  | { type: 'guided-tick' }
+  | { type: 'guided-advance' }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -154,6 +173,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'set-category':
       return {
         ...state,
+        categoryRules: action.always ? upsertRule(state.categoryRules, { ...action.always, category: action.category }) : state.categoryRules,
         movements: state.movements.map((movement) => {
           if (movement.id !== action.movementId) return movement
           let reconciliation = movement.reconciliation
@@ -166,6 +186,8 @@ function reducer(state: AppState, action: Action): AppState {
           return { ...movement, category: action.category, reconciliation }
         }),
       }
+    case 'save-rule':
+      return { ...state, categoryRules: upsertRule(state.categoryRules, action) }
     case 'confirm': {
       const movement = state.movements.find((item) => item.id === action.movementId)
       if (!movement || movement.reconciliation === 'confirmada') return state
@@ -253,32 +275,34 @@ function reducer(state: AppState, action: Action): AppState {
         detail: null,
         detailBack: null,
         reconcileId: null,
-        guided: { phase: 'chat', order: action.order, step: 0 },
+        guided: { phase: 'drop', order: action.order, checks: 0, step: 0 },
       }
-    case 'guided-run':
-      if (!state.guided) return state
-      return {
-        ...state,
-        route: 'facturas',
-        detail: null,
-        detailBack: null,
-        reconcileId: null,
-        invoiceTab: 'recibidas',
-        invoiceFilters: EMPTY_INVOICE_FILTERS,
-        guided: { ...state.guided, phase: 'running', step: 0 },
+    case 'guided-advance': {
+      const guided = state.guided
+      if (!guided || guided.phase === 'done') return state
+      if (guided.phase === 'drop') {
+        return { ...state, guided: { ...guided, phase: 'checklist', checks: 1 } }
       }
-    case 'guided-tick': {
-      if (!state.guided || state.guided.phase !== 'running') return state
-      const next = state.guided.step + 1
-      if (next >= state.guided.order.length) {
-        return { ...state, invoiceTab: 'recibidas', guided: { ...state.guided, step: state.guided.order.length, phase: 'done' } }
+      if (guided.phase === 'checklist') {
+        if (guided.checks >= 4) {
+          return {
+            ...state,
+            route: 'facturas',
+            detail: null,
+            detailBack: null,
+            reconcileId: null,
+            invoiceTab: 'recibidas',
+            invoiceFilters: EMPTY_INVOICE_FILTERS,
+            guided: { ...guided, phase: 'running', step: 0 },
+          }
+        }
+        return { ...state, guided: { ...guided, checks: guided.checks + 1 } }
       }
-      const revealed = state.invoices.find((invoice) => invoice.id === state.guided?.order[next - 1])
-      return {
-        ...state,
-        invoiceTab: revealed?.direction === 'emitida' ? 'emitidas' : 'recibidas',
-        guided: { ...state.guided, step: next },
+      const next = Math.min(guided.order.length, guided.step + 8)
+      if (next >= guided.order.length) {
+        return { ...state, invoiceTab: 'recibidas', guided: { ...guided, step: next, phase: 'done' } }
       }
+      return { ...state, guided: { ...guided, step: next } }
     }
     default:
       return state
@@ -303,7 +327,9 @@ type StoreValue = {
   setInvoiceFilters: (filters: InvoiceFilters) => void
   setInvoiceTab: (tab: InvoiceTab) => void
   toggleAttention: () => void
-  setCategory: (movementId: string, category: Category) => void
+  setCategory: (movementId: string, category: Category, always?: { rfc: string; side: 'gasto' | 'ingreso' }) => void
+  saveRule: (rule: { rfc: string; side: 'gasto' | 'ingreso'; category: string }) => void
+  openParty: (direction: 'recibida' | 'emitida', name: string) => void
   confirmReconcile: (movementId: string, invoiceIds: string[]) => void
   undoReconcile: (movementId: string) => void
   simulateComplemento: (invoiceId: string) => void
@@ -336,10 +362,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state])
 
   useEffect(() => {
-    if (state.guided?.phase !== 'running') return
-    const timer = window.setInterval(() => dispatch({ type: 'guided-tick' }), 220)
-    return () => window.clearInterval(timer)
-  }, [state.guided?.phase])
+    const guided = state.guided
+    if (!guided || guided.phase === 'done') return
+    const delay = guided.phase === 'drop' ? 1100 : guided.phase === 'checklist' ? 650 : 420
+    const timer = window.setTimeout(() => dispatch({ type: 'guided-advance' }), delay)
+    return () => window.clearTimeout(timer)
+  }, [state.guided])
 
   const api = useMemo<StoreValue>(() => {
     const openUpload = (file?: File) => {
@@ -412,7 +440,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setInvoiceFilters: (filters) => dispatch({ type: 'invoice-filters', filters }),
       setInvoiceTab: (tab) => dispatch({ type: 'invoice-tab', tab }),
       toggleAttention: () => dispatch({ type: 'toggle-attention' }),
-      setCategory: (movementId, category) => dispatch({ type: 'set-category', movementId, category }),
+      setCategory: (movementId, category, always) => dispatch({ type: 'set-category', movementId, category, always }),
+      saveRule: (rule) => dispatch({ type: 'save-rule', ...rule }),
+      openParty: (direction, name) => dispatch({ type: 'party', direction, name }),
       confirmReconcile: (movementId, invoiceIds) => dispatch({ type: 'confirm', movementId, invoiceIds }),
       undoReconcile: (movementId) => dispatch({ type: 'undo', movementId }),
       simulateComplemento: (invoiceId) => dispatch({ type: 'complemento', invoiceId }),
@@ -423,25 +453,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'reset' })
       },
       startGuidedFlow: () => {
-        if (state.guided?.phase === 'chat' || state.guided?.phase === 'running') return
-        const token = epoch.current
-        const order = guidedOrder(state.invoices, state.applications)
-        dispatch({ type: 'guided-arm', order })
-        dispatch({
-          type: 'add-message',
-          message: { id: uid('msg'), role: 'user', kind: 'text', text: 'Subí el estado de cuenta de la bodega.' },
-        })
-        window.setTimeout(() => {
-          if (epoch.current !== token) return
-          dispatch({
-            type: 'add-message',
-            message: { id: uid('msg'), role: 'assistant', kind: 'text', text: 'Empieza la conciliación.' },
-          })
-        }, 700)
-        window.setTimeout(() => {
-          if (epoch.current !== token) return
-          dispatch({ type: 'guided-run' })
-        }, 1500)
+        const phase = state.guided?.phase
+        if (phase === 'drop' || phase === 'checklist' || phase === 'running') return
+        dispatch({ type: 'guided-arm', order: guidedOrder(state.invoices, state.applications) })
       },
       uploadOpen,
       uploadFile,
