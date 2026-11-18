@@ -14,7 +14,7 @@ import { money, norm } from '../format'
 import { useStore } from '../store'
 
 export function Categorias() {
-  const { state, saveRule, createCategory } = useStore()
+  const { state, saveRule, createCategory, renameCategory, deleteCategory, deleteRule } = useStore()
   const [query, setQuery] = useState('')
   const [side, setSide] = useState<'gasto' | 'ingreso'>('gasto')
   const [rfc, setRfc] = useState(SUPPLIERS[0]?.rfc ?? '')
@@ -31,11 +31,14 @@ export function Categorias() {
     ]),
   ]
   const q = norm(query)
-  const labels = categoryChoices([
-    ...state.customCategories.map((item) => item.name),
-    ...state.categoryRules.map((rule) => rule.category),
-    ...state.movements.map((movement) => movement.category),
-  ])
+  const labels = categoryChoices(
+    [
+      ...state.customCategories.map((item) => item.name),
+      ...state.categoryRules.map((rule) => rule.category),
+      ...state.movements.map((movement) => movement.category),
+    ],
+    state.hiddenCategories,
+  )
   const rows = labels.flatMap((category) => {
     const rules = state.categoryRules.filter((rule) => rule.category === category)
     const named = norm(categoryLabel(category)).includes(q)
@@ -158,24 +161,52 @@ export function Categorias() {
         <input value={query} placeholder="Subnombre, razón social o categoría" onChange={(event) => setQuery(event.target.value)} />
       </label>
       <ul className="cat-list">
-        {rows.map((row) => (
-          <li key={row.category}>
-            <div className="cat-row">
-              <span>{categoryLabel(row.category)}</span>
-              <span className="num">{money(row.amount)}</span>
-            </div>
-            {row.rules.map((rule) => {
-              const party = partyByRfc(rule.rfc)
-              const edit = state.partyProfiles.find((item) => item.rfc === rule.rfc)
-              const who = edit?.subnombre || party?.subnombre || rule.rfc
-              return (
-                <p key={rule.rfc} className="rule-line">
-                  {who} · {rule.rfc}
-                </p>
-              )
-            })}
-          </li>
-        ))}
+        {rows.map((row) => {
+          const people = row.rules.map((rule) => {
+            const party = partyByRfc(rule.rfc)
+            const edit = state.partyProfiles.find((item) => item.rfc === rule.rfc)
+            return edit?.subnombre || party?.subnombre || rule.rfc
+          })
+          const uses =
+            people.length === 0
+              ? 'Ningún RFC la usa. Los movimientos nuevos no entran aquí solos.'
+              : `${people.join(', ')}. Los movimientos nuevos de ${people.length === 1 ? 'ese RFC entran' : 'esos RFC entran'} aquí solos.`
+          return (
+            <li key={row.category}>
+              <div className="cat-row">
+                <input
+                  aria-label={`Nombre de ${categoryLabel(row.category)}`}
+                  defaultValue={categoryLabel(row.category)}
+                  onBlur={(event) => {
+                    const next = event.target.value.trim()
+                    if (!next || next === row.category || next === categoryLabel(row.category)) return
+                    renameCategory(row.category, next)
+                  }}
+                />
+                <span className="num">{money(row.amount)}</span>
+                <button type="button" className="btn quiet" onClick={() => deleteCategory(row.category)}>
+                  Eliminar
+                </button>
+              </div>
+              <p className="rule-line">{uses}</p>
+              {row.rules.map((rule) => {
+                const party = partyByRfc(rule.rfc)
+                const edit = state.partyProfiles.find((item) => item.rfc === rule.rfc)
+                const who = edit?.subnombre || party?.subnombre || rule.rfc
+                return (
+                  <div key={rule.rfc} className="rule-control">
+                    <span>
+                      {who} · {rule.rfc}
+                    </span>
+                    <button type="button" className="btn quiet" onClick={() => deleteRule(rule.rfc)}>
+                      Quitar regla
+                    </button>
+                  </div>
+                )
+              })}
+            </li>
+          )
+        })}
       </ul>
       {rows.length === 0 && <p className="empty">Ninguna regla coincide.</p>}
     </div>

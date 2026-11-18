@@ -22,7 +22,7 @@ import { PartyLines } from './party'
 function CategorySelect({ movement, labelled }: { movement: Movement; labelled?: boolean }) {
   const { state, setCategory } = useStore()
   const [offer, setOffer] = useState(false)
-  const choices = categoryChoices([...state.categoryRules.map((rule) => rule.category), movement.category])
+  const choices = categoryChoices([...state.categoryRules.map((rule) => rule.category), movement.category], state.hiddenCategories)
   const rfc = movementRfc(movement, state.invoices, state.applications)
   const side: 'gasto' | 'ingreso' = movement.abono > 0 && movement.cargo === 0 ? 'ingreso' : 'gasto'
   const rule = rfc ? state.categoryRules.find((item) => item.rfc === rfc) : undefined
@@ -108,7 +108,7 @@ export function Bancos() {
           <span>Categoría</span>
           <select value={filters.category} onChange={(event) => setBankFilters({ ...filters, category: event.target.value })}>
             <option value="todas">Todas</option>
-            {categoryChoices([...state.categoryRules.map((rule) => rule.category), ...state.movements.map((movement) => movement.category)]).map((category) => (
+            {categoryChoices([...state.categoryRules.map((rule) => rule.category), ...state.movements.map((movement) => movement.category)], state.hiddenCategories).map((category) => (
               <option key={category} value={category}>
                 {categoryLabel(category)}
               </option>
@@ -270,7 +270,7 @@ function MovementDetail({ id }: { id: string }) {
             Revisar coincidencia
           </button>
         )}
-        {movement.reconciliation === 'confirmada' && state.applications.some((item) => item.movementId === movement.id) && (
+        {state.applications.some((item) => item.movementId === movement.id) && (
           <button type="button" className="btn quiet" onClick={() => undoReconcile(movement.id)}>
             Deshacer conciliación
           </button>

@@ -245,10 +245,11 @@ export function categoryLabel(category: string): string {
   return CATEGORY_SHORT[category as KnownCategory] ?? category
 }
 
-export function categoryChoices(extra: string[]): string[] {
-  const known = new Set<string>(CATEGORIES)
-  const more = extra.filter((item) => item && !known.has(item))
-  return [...CATEGORIES, ...new Set(more)]
+export function categoryChoices(extra: string[], hidden: string[] = []): string[] {
+  const known = CATEGORIES.filter((item) => !hidden.includes(item))
+  const knownSet = new Set<string>(known)
+  const more = extra.filter((item) => item && !knownSet.has(item) && !hidden.includes(item))
+  return [...known, ...new Set(more)]
 }
 
 export function partyByRfc(rfc: string): Party | undefined {

@@ -72,6 +72,7 @@ export type Application = {
   movementId: string
   invoiceId: string
   amount: number
+  complemento?: 'pendiente' | 'recibido'
 }
 
 export type Complemento = {
@@ -148,6 +149,7 @@ export type AppState = {
   guided: GuidedFlow | null
   categoryRules: CategoryRule[]
   customCategories: CustomCategory[]
+  hiddenCategories: string[]
   partyProfiles: PartyProfile[]
   messages: ChatMessage[]
   movements: Movement[]

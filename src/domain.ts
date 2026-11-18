@@ -611,6 +611,28 @@ export function movementAmount(movement: Pick<Movement, 'cargo' | 'abono'>): num
   return movement.cargo > 0 ? movement.cargo : movement.abono
 }
 
+export function movementRemaining(movement: Movement, applications: Application[]): number {
+  const used = applications.filter((item) => item.movementId === movement.id).reduce((sum, item) => sum + item.amount, 0)
+  return Math.max(0, movementAmount(movement) - used)
+}
+
+export function openMovementsForInvoice(invoice: Invoice, movements: Movement[], applications: Application[]): Movement[] {
+  if (invoice.vigencia !== 'vigente' || pendingBalance(invoice, applications) <= 0) return []
+  const wantCargo = invoice.direction === 'recibida'
+  return movements
+    .filter((movement) => movement.reconciliation !== 'no_requiere' && (wantCargo ? movement.cargo > 0 : movement.abono > 0) && movementRemaining(movement, applications) > 0)
+    .sort((a, b) => {
+      const rank = (movement: Movement) => (movement.suggestionIds.includes(invoice.id) ? 0 : nameInConcept(movement.concept, invoice.name) ? 1 : 2)
+      return rank(a) - rank(b) || b.date.localeCompare(a.date) || a.id.localeCompare(b.id)
+    })
+}
+
+export function complementoForPayment(invoice: Invoice, priorPayments: number): 'pendiente' | 'recibido' | undefined {
+  if (invoice.complemento === 'no_aplica' || (invoice.metodo === 'PUE' && invoice.formaPago === '03')) return undefined
+  if (priorPayments === 0 && invoice.complemento === 'recibido') return 'recibido'
+  return 'pendiente'
+}
+
 export function categoryAmount(movements: Movement[], category: string): number {
   return movements.filter((movement) => movement.category === category).reduce((sum, movement) => sum + movementAmount(movement), 0)
 }
@@ -657,10 +679,22 @@ export function invoiceFlow(invoice: Invoice, applications: Application[]): { co
   const pago = paymentStatus(invoice, applications)
   const transferPue = invoice.metodo === 'PUE' && invoice.formaPago === '03'
   const complementoNoAplica = invoice.complemento === 'no_aplica' || transferPue
-  const complementoDone = complementoNoAplica || invoice.complemento === 'recibido'
+  const pays = applications.filter((item) => item.invoiceId === invoice.id)
+  let complementoDone = false
+  let complementoText = 'Pendiente'
+  if (complementoNoAplica) {
+    complementoDone = true
+    complementoText = 'No aplica'
+  } else if (pays.length === 0) {
+    complementoDone = invoice.complemento === 'recibido'
+    complementoText = complementoDone ? 'Recibido' : 'Pendiente'
+  } else {
+    const missing = pays.filter((item) => (item.complemento ?? (invoice.complemento === 'recibido' ? 'recibido' : 'pendiente')) !== 'recibido')
+    complementoDone = missing.length === 0
+    complementoText = complementoDone ? 'Recibido' : 'Pendiente'
+  }
   const pagoText = pago === 'pagada' ? 'Pagado' : pago === 'parcial' ? 'Parcial' : 'Sin pago'
-  const complementoText = complementoNoAplica ? 'No aplica' : invoice.complemento === 'recibido' ? 'Recibido' : 'Pendiente'
-  const review = invoice.vigencia === 'vigente' && !complementoDone && invoice.complemento === 'pendiente' && pago === 'pagada'
+  const review = invoice.vigencia === 'vigente' && !complementoDone && !complementoNoAplica && pago === 'pagada'
   const facturaDone = invoice.vigencia === 'vigente'
   const pagoDone = pago === 'pagada'
   const complete = facturaDone && pagoDone && complementoDone

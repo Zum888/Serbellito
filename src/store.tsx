@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { EXAMPLE_RULES, selectedAccountId } from './catalog'
+import { CATEGORIES, EXAMPLE_RULES, selectedAccountId } from './catalog'
 import { interpret } from './chat'
-import { fingerprint, guidedOrder } from './domain'
+import { complementoForPayment, fingerprint, guidedOrder, movementRemaining } from './domain'
 import { todayIso, uid } from './format'
 import { SEED } from './seed'
 import type {
@@ -43,6 +43,45 @@ export const EMPTY_INVOICE_FILTERS: InvoiceFilters = {
   to: '',
 }
 
+function categorySide(name: string, state: AppState): 'gasto' | 'ingreso' {
+  const custom = state.customCategories.find((item) => item.name === name)
+  if (custom) return custom.side
+  if (name === 'cobros de clientes') return 'ingreso'
+  const rule = state.categoryRules.find((item) => item.category === name)
+  return rule?.side ?? 'gasto'
+}
+
+function renameCategory(state: AppState, from: string, to: string): AppState {
+  const source = from.trim()
+  const target = to.trim()
+  if (!source || !target || source === target) return state
+  const side = categorySide(source, state)
+  const builtIn = (CATEGORIES as readonly string[]).includes(source)
+  return {
+    ...state,
+    hiddenCategories: builtIn ? [...new Set([...state.hiddenCategories, source])] : state.hiddenCategories.filter((item) => item !== target),
+    customCategories: addCategory(
+      state.customCategories.filter((item) => item.name !== source && item.name !== target),
+      target,
+      side,
+    ),
+    categoryRules: state.categoryRules.map((rule) => (rule.category === source ? { ...rule, category: target } : rule)),
+    movements: state.movements.map((movement) => (movement.category === source ? { ...movement, category: target } : movement)),
+  }
+}
+
+function deleteCategory(state: AppState, name: string): AppState {
+  const side = categorySide(name, state)
+  const fallback = side === 'ingreso' ? 'cobros de clientes' : name === 'mercancía' ? 'empaques' : 'mercancía'
+  return {
+    ...state,
+    hiddenCategories: [...new Set([...state.hiddenCategories, name])],
+    customCategories: state.customCategories.filter((item) => item.name !== name),
+    categoryRules: state.categoryRules.filter((rule) => rule.category !== name),
+    movements: state.movements.map((movement) => (movement.category === name ? { ...movement, category: fallback } : movement)),
+  }
+}
+
 function addCategory(categories: CustomCategory[], name: string, side: 'gasto' | 'ingreso'): CustomCategory[] {
   const trimmed = name.trim()
   if (!trimmed) return categories
@@ -70,6 +109,7 @@ function freshState(): AppState {
     guided: null,
     categoryRules: EXAMPLE_RULES,
     customCategories: [],
+    hiddenCategories: [],
     partyProfiles: [],
     messages: [],
     movements: SEED.movements,
@@ -97,6 +137,7 @@ function loadState(): AppState {
     if (parsed.invoices.some((invoice) => !invoice.usoCfdi || !invoice.formaPago)) return freshState()
     if (!Array.isArray(parsed.categoryRules)) parsed.categoryRules = EXAMPLE_RULES
     if (!Array.isArray(parsed.customCategories)) parsed.customCategories = []
+    if (!Array.isArray(parsed.hiddenCategories)) parsed.hiddenCategories = []
     if (!Array.isArray(parsed.partyProfiles)) parsed.partyProfiles = []
     parsed.messages = []
     parsed.guided = null
@@ -129,6 +170,9 @@ type Action =
   | { type: 'set-category'; movementId: string; category: Category; always?: { rfc: string; side: 'gasto' | 'ingreso' } }
   | { type: 'save-rule'; rfc: string; side: 'gasto' | 'ingreso'; category: string }
   | { type: 'create-category'; name: string; side: 'gasto' | 'ingreso' }
+  | { type: 'rename-category'; from: string; to: string }
+  | { type: 'delete-category'; name: string }
+  | { type: 'delete-rule'; rfc: string }
   | { type: 'save-profile'; profile: PartyProfile }
   | { type: 'confirm'; movementId: string; invoiceIds: string[] }
   | { type: 'undo'; movementId: string }
@@ -207,7 +251,13 @@ function reducer(state: AppState, action: Action): AppState {
     case 'save-rule':
       return { ...state, categoryRules: upsertRule(state.categoryRules, action) }
     case 'create-category':
-      return { ...state, customCategories: addCategory(state.customCategories, action.name, action.side) }
+      return { ...state, customCategories: addCategory(state.customCategories, action.name, action.side), hiddenCategories: state.hiddenCategories.filter((item) => item !== action.name.trim()) }
+    case 'rename-category':
+      return renameCategory(state, action.from, action.to)
+    case 'delete-category':
+      return deleteCategory(state, action.name)
+    case 'delete-rule':
+      return { ...state, categoryRules: state.categoryRules.filter((rule) => rule.rfc !== action.rfc) }
     case 'save-profile': {
       const profile = cleanProfile(action.profile)
       if (!profile) return state
@@ -215,38 +265,48 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'confirm': {
       const movement = state.movements.find((item) => item.id === action.movementId)
-      if (!movement || movement.reconciliation === 'confirmada') return state
+      if (!movement || movement.reconciliation === 'no_requiere') return state
+      let remaining = movementRemaining(movement, state.applications)
+      if (remaining <= 0) return state
       const direction = movement.cargo > 0 ? 'recibida' : 'emitida'
-      const payment = movement.cargo > 0 ? movement.cargo : movement.abono
       const chosen = [...new Set(action.invoiceIds)]
         .map((id) => state.invoices.find((invoice) => invoice.id === id))
         .filter((invoice): invoice is NonNullable<typeof invoice> => Boolean(invoice))
         .filter((invoice) => invoice.vigencia === 'vigente' && invoice.direction === direction)
-        .map((invoice) => ({ invoice, pending: pendingBalance(invoice, state.applications) }))
-        .filter((item) => item.pending > 0)
-      if (!chosen.length) return state
-      const sum = chosen.reduce((total, item) => total + item.pending, 0)
-      let amounts: { id: string; amount: number }[] = []
-      if (sum === payment) amounts = chosen.map((item) => ({ id: item.invoice.id, amount: item.pending }))
-      else if (chosen.length === 1 && chosen[0].pending > payment) amounts = [{ id: chosen[0].invoice.id, amount: payment }]
-      else return state
+      const created: AppState['applications'] = []
+      let applications = state.applications
+      for (const invoice of chosen) {
+        if (remaining <= 0) break
+        const pending = pendingBalance(invoice, applications)
+        const take = Math.min(pending, remaining)
+        if (take <= 0) continue
+        const prior = applications.filter((item) => item.invoiceId === invoice.id).length
+        const complemento = complementoForPayment(invoice, prior)
+        const next = {
+          id: uid('app'),
+          movementId: movement.id,
+          invoiceId: invoice.id,
+          amount: take,
+          ...(complemento ? { complemento } : {}),
+        }
+        created.push(next)
+        applications = [...applications, next]
+        remaining -= take
+      }
+      if (!created.length) return state
       return {
         ...state,
-        applications: [
-          ...state.applications,
-          ...amounts.map((item) => ({
-            id: uid('app'),
-            movementId: movement.id,
-            invoiceId: item.id,
-            amount: item.amount,
-          })),
-        ],
-        movements: state.movements.map((item) => (item.id === movement.id ? { ...item, reconciliation: 'confirmada' } : item)),
+        applications,
+        movements: state.movements.map((item) =>
+          item.id === movement.id
+            ? { ...item, reconciliation: remaining === 0 ? 'confirmada' : item.suggestionIds.length ? 'por_revisar' : 'sin_coincidencia' }
+            : item,
+        ),
       }
     }
     case 'undo': {
       const movement = state.movements.find((item) => item.id === action.movementId)
-      if (!movement || movement.reconciliation !== 'confirmada') return state
+      if (!movement || !state.applications.some((item) => item.movementId === movement.id)) return state
       return {
         ...state,
         applications: state.applications.filter((item) => item.movementId !== movement.id),
@@ -355,6 +415,9 @@ type StoreValue = {
   setCategory: (movementId: string, category: Category, always?: { rfc: string; side: 'gasto' | 'ingreso' }) => void
   saveRule: (rule: { rfc: string; side: 'gasto' | 'ingreso'; category: string }) => void
   createCategory: (name: string, side: 'gasto' | 'ingreso') => void
+  renameCategory: (from: string, to: string) => void
+  deleteCategory: (name: string) => void
+  deleteRule: (rfc: string) => void
   saveProfile: (profile: PartyProfile) => void
   openParty: (direction: 'recibida' | 'emitida', name: string) => void
   confirmReconcile: (movementId: string, invoiceIds: string[]) => void
@@ -470,6 +533,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setCategory: (movementId, category, always) => dispatch({ type: 'set-category', movementId, category, always }),
       saveRule: (rule) => dispatch({ type: 'save-rule', ...rule }),
       createCategory: (name, side) => dispatch({ type: 'create-category', name, side }),
+      renameCategory: (from, to) => dispatch({ type: 'rename-category', from, to }),
+      deleteCategory: (name) => dispatch({ type: 'delete-category', name }),
+      deleteRule: (rfc) => dispatch({ type: 'delete-rule', rfc }),
       saveProfile: (profile) => dispatch({ type: 'save-profile', profile }),
       openParty: (direction, name) => dispatch({ type: 'party', direction, name }),
       confirmReconcile: (movementId, invoiceIds) => dispatch({ type: 'confirm', movementId, invoiceIds }),

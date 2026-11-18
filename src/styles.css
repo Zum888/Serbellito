@@ -267,7 +267,24 @@ tr.click:hover { background: #fafafa; }
   border-bottom: 1px solid var(--line);
   font-weight: 650;
 }
-.cat-row:hover { background: transparent; }
+.cat-row input {
+  flex: 1;
+  min-width: 160px;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-weight: 650;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+.cat-row input:hover,
+.cat-row input:focus { border-color: var(--line); background: #fff; outline: none; }
+.rule-control { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 2px 0 8px; color: var(--muted); font-size: 14px; }
+.match-check { display: flex; gap: 8px; align-items: flex-start; width: 100%; }
+.match-check > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.match-check input { margin-top: 3px; }
+.match-sum { display: grid; gap: 2px; margin: 12px 0; font-variant-numeric: tabular-nums; }
+.match-sum span { color: var(--muted); font-size: 13px; }
 .rule-form { margin: 0 0 18px; padding: 0 0 8px; }
 .rule-form .muted { margin: 0 0 12px; max-width: 62ch; }
 .rule-grid { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
