@@ -5,6 +5,7 @@ import { consultedLabel, fiscalPdf } from '../pdf'
 import {
   attentionItems,
   debtNarrative,
+  invoiceFlow,
   isChoiceCase,
   paymentOf,
   paymentStatus,
@@ -18,6 +19,7 @@ import { formatDate, money } from '../format'
 import { useStore } from '../store'
 import type { AttentionItem, ChatMessage, Invoice, Movement } from '../types'
 import { IconArrow, IconClip } from './icons'
+import { PartyLines } from './party'
 
 export function AttentionList({ items, onOpen }: { items: AttentionItem[]; onOpen: (item: AttentionItem) => void }) {
   if (!items.length) return <p className="quiet-block">Nada pendiente por ahora.</p>
@@ -159,9 +161,8 @@ function MessageView({ message }: { message: ChatMessage }) {
         return (
           <button key={id} type="button" className="doc-card as-button" onClick={() => openDetail({ type: 'invoice', id })}>
             <span>
-              <strong>
-                {invoice.folio} · {invoice.name}
-              </strong>
+              <strong>{invoice.folio}</strong>
+              <PartyLines name={invoice.name} />
               <span className="muted">
                 {money(invoice.total)} · saldo {money(pendingBalance(invoice, state.applications))}
               </span>
@@ -333,6 +334,21 @@ function selectionFor(movement: Movement, invoices: Invoice[], applications: Par
   return [...movement.suggestionIds]
 }
 
+function FlowMark({ invoice, applications }: { invoice: Invoice; applications: Parameters<typeof invoiceFlow>[1] }) {
+  const flow = invoiceFlow(invoice, applications)
+  if (flow.complete) {
+    return (
+      <span className="complete">
+        <span className="complete-dot" aria-hidden="true" />
+        Completo
+      </span>
+    )
+  }
+  const pago = paymentStatus(invoice, applications)
+  if (flow.steps.some((step) => step.review)) return <span className="review">Falta complemento</span>
+  return <span className="muted">{pago === 'parcial' ? 'Parcial' : 'Pagada'}</span>
+}
+
 function invoiceNote(invoice: Invoice): string {
   if (invoice.complemento === 'pendiente') return 'Factura vigente · falta complemento'
   if (invoice.complemento === 'recibido') return 'Factura vigente · complemento en el expediente'
@@ -383,9 +399,7 @@ export function ReconcilePanel() {
         <button type="button" className="btn quiet back" onClick={closeReconcile}>
           ← Volver
         </button>
-        <h2 data-testid="reconcile-question" className={confirmed ? 'ok' : undefined}>
-          {question}
-        </h2>
+        <h2 data-testid="reconcile-question">{question}</h2>
       </header>
       <div className="reconcile-body" data-testid="reconcile-body">
         <TransferBlock movement={movement} />
@@ -406,14 +420,13 @@ export function ReconcilePanel() {
                   />
                 )}
                 <span>
-                  <strong>
-                    {invoice.folio} · {invoice.name}
-                  </strong>
+                  <strong>{invoice.folio}</strong>
+                  <PartyLines name={invoice.name} />
                   <span className="muted">{invoiceNote(invoice)}</span>
                 </span>
                 <span className="amt">
                   {money(confirmed ? amount : invoice.total)}
-                  {confirmed && <span className={paymentStatus(invoice, state.applications) === 'pagada' ? 'ok' : 'review'}>{paymentStatus(invoice, state.applications) === 'pagada' ? 'Pagada' : 'Parcial'}</span>}
+                  {confirmed && <FlowMark invoice={invoice} applications={state.applications} />}
                 </span>
               </label>
             )
@@ -438,9 +451,8 @@ export function ReconcilePanel() {
               <label key={invoice.id} className="pick compact">
                 <input type="checkbox" checked={false} onChange={() => toggle(invoice.id)} />
                 <span>
-                  <strong>
-                    {invoice.folio} · {invoice.name}
-                  </strong>
+                  <strong>{invoice.folio}</strong>
+                  <PartyLines name={invoice.name} />
                   <span className="muted">Saldo {money(pendingBalance(invoice, state.applications))}</span>
                 </span>
                 <span className="amt">{money(invoice.total)}</span>
@@ -450,7 +462,7 @@ export function ReconcilePanel() {
         )}
       </div>
       <footer className="reconcile-foot">
-        <div data-testid="reconcile-difference" className={diff === 0 ? 'ok' : 'review'}>
+        <div data-testid="reconcile-difference" className={diff === 0 ? undefined : 'review'}>
           Diferencia: {money(diff)}
         </div>
         <div className="foot-actions">

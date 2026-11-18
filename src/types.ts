@@ -27,6 +27,8 @@ export type Invoice = {
   vigencia: Vigencia
   complemento: ComplementoStatus
   concept: string
+  usoCfdi: string
+  formaPago: string
 }
 
 export type Movement = {
@@ -61,7 +63,7 @@ export type Complemento = {
   amount: number
 }
 
-export type RouteName = 'inicio' | 'bancos' | 'facturas'
+export type RouteName = 'inicio' | 'bancos' | 'facturas' | 'categorias'
 
 export type Detail = { type: 'invoice' | 'movement'; id: string }
 
@@ -115,7 +117,7 @@ export type ChatMessage = {
 }
 
 export type AppState = {
-  version: 1
+  version: 2
   messages: ChatMessage[]
   movements: Movement[]
   invoices: Invoice[]

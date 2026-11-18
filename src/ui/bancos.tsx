@@ -1,30 +1,34 @@
-import { CATEGORIES, accountLabel } from '../catalog'
+import { CATEGORIES, CATEGORY_SHORT, accountLabel, selectedAccountId } from '../catalog'
 import {
   COMPLEMENTO_LABEL,
   PAGO_LABEL,
   RECON_LABEL,
   attentionItems,
+  bankTotals,
   filterMovements,
   linkedInvoices,
-  movementAccounts,
   movementSentences,
   paymentStatus,
 } from '../domain'
 import { formatDate, money } from '../format'
 import { EMPTY_BANK_FILTERS, useStore } from '../store'
 import type { Category, Movement } from '../types'
+import { AccountChips } from './accounts'
 import { MxDate } from './fields'
+import { PartyLines } from './party'
 
-function filtersActive(filters: { query: string; account: string; category: string; reconciliation: string; from: string; to: string }) {
-  return Boolean(filters.query || filters.from || filters.to || filters.account !== 'todas' || filters.category !== 'todas' || filters.reconciliation !== 'todas')
+function filtersActive(filters: { query: string; category: string; reconciliation: string; from: string; to: string }) {
+  return Boolean(filters.query || filters.from || filters.to || filters.category !== 'todas' || filters.reconciliation !== 'todas')
 }
 
 export function Bancos() {
   const { state, setBankFilters, openUpload, navigate } = useStore()
   if (state.detail?.type === 'movement') return <MovementDetail id={state.detail.id} />
 
-  const rows = filterMovements(state.movements, state.applications, state.invoices, state.bankFilters)
-  const accounts = movementAccounts(state.movements)
+  const accountId = selectedAccountId(state.bankFilters.account)
+  const filters = { ...state.bankFilters, account: accountId }
+  const rows = filterMovements(state.movements, state.applications, state.invoices, filters)
+  const totals = bankTotals(state.movements, accountId)
   const cargo = rows.reduce((sum, movement) => sum + movement.cargo, 0)
   const pending = attentionItems(state).length
 
@@ -44,33 +48,33 @@ export function Bancos() {
           </button>
         </div>
       </header>
+      <AccountChips accountId={accountId} onSelect={(account) => setBankFilters({ ...filters, account })} />
+      <div className="bank-totals">
+        <div>
+          <span>Ingresos</span>
+          <strong>{money(totals.ingresos)}</strong>
+        </div>
+        <div>
+          <span>Gastos</span>
+          <strong>{money(totals.gastos)}</strong>
+        </div>
+      </div>
       <div className="filters">
         <label className="field grow">
           <span>Buscar</span>
           <input
-            value={state.bankFilters.query}
-            placeholder="Concepto o factura"
-            onChange={(event) => setBankFilters({ ...state.bankFilters, query: event.target.value })}
+            value={filters.query}
+            placeholder="Concepto, subnombre o factura"
+            onChange={(event) => setBankFilters({ ...filters, query: event.target.value })}
           />
         </label>
         <label className="field">
-          <span>Cuenta</span>
-          <select value={state.bankFilters.account} onChange={(event) => setBankFilters({ ...state.bankFilters, account: event.target.value })}>
-            <option value="todas">Todas</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
           <span>Categoría</span>
-          <select value={state.bankFilters.category} onChange={(event) => setBankFilters({ ...state.bankFilters, category: event.target.value })}>
+          <select value={filters.category} onChange={(event) => setBankFilters({ ...filters, category: event.target.value })}>
             <option value="todas">Todas</option>
             {CATEGORIES.map((category) => (
               <option key={category} value={category}>
-                {category}
+                {CATEGORY_SHORT[category]}
               </option>
             ))}
           </select>
@@ -78,8 +82,8 @@ export function Bancos() {
         <label className="field">
           <span>Conciliación</span>
           <select
-            value={state.bankFilters.reconciliation}
-            onChange={(event) => setBankFilters({ ...state.bankFilters, reconciliation: event.target.value })}
+            value={filters.reconciliation}
+            onChange={(event) => setBankFilters({ ...filters, reconciliation: event.target.value })}
           >
             <option value="todas">Todas</option>
             <option value="por_revisar">Por revisar</option>
@@ -88,22 +92,22 @@ export function Bancos() {
             <option value="no_requiere">No requieren factura</option>
           </select>
         </label>
-        <MxDate label="Desde" value={state.bankFilters.from} onChange={(from) => setBankFilters({ ...state.bankFilters, from })} />
-        <MxDate label="Hasta" value={state.bankFilters.to} onChange={(to) => setBankFilters({ ...state.bankFilters, to })} />
-        {filtersActive(state.bankFilters) && (
-          <button type="button" className="btn quiet" onClick={() => setBankFilters(EMPTY_BANK_FILTERS)}>
+        <MxDate label="Desde" value={filters.from} onChange={(from) => setBankFilters({ ...filters, from })} />
+        <MxDate label="Hasta" value={filters.to} onChange={(to) => setBankFilters({ ...filters, to })} />
+        {filtersActive(filters) && (
+          <button type="button" className="btn quiet" onClick={() => setBankFilters({ ...EMPTY_BANK_FILTERS, account: accountId })}>
             Limpiar filtros
           </button>
         )}
       </div>
       <p className="count" data-testid="bank-count">
         {rows.length} {rows.length === 1 ? 'movimiento' : 'movimientos'}
-        {state.bankFilters.reconciliation === 'sin_factura' ? ` · ${money(cargo)}` : ''}
+        {filters.reconciliation === 'sin_factura' ? ` · ${money(cargo)}` : ''}
       </p>
       {rows.length === 0 ? (
         <div className="empty">
           <p>Ningún movimiento coincide con estos filtros.</p>
-          <button type="button" className="btn quiet" onClick={() => setBankFilters(EMPTY_BANK_FILTERS)}>
+          <button type="button" className="btn quiet" onClick={() => setBankFilters({ ...EMPTY_BANK_FILTERS, account: accountId })}>
             Limpiar filtros
           </button>
         </div>
@@ -140,9 +144,10 @@ function MovementRow({ movement }: { movement: Movement }) {
       <td>{formatDate(movement.date)}</td>
       <td>
         <div>{movement.concept}</div>
-        <div className={movement.reconciliation === 'confirmada' ? 'ok' : movement.reconciliation === 'por_revisar' ? 'review' : 'muted'}>
-          {RECON_LABEL[movement.reconciliation]}
-        </div>
+        <div className={movement.reconciliation === 'por_revisar' ? 'review' : 'muted'}>{RECON_LABEL[movement.reconciliation]}</div>
+        {[...new Set(links.map((invoice) => invoice.name))].map((name) => (
+          <PartyLines key={name} name={name} compact />
+        ))}
       </td>
       <td>{accountLabel(movement.accountId)}</td>
       <td className="num">{movement.cargo > 0 ? money(movement.cargo) : money(movement.abono)}</td>
@@ -155,7 +160,7 @@ function MovementRow({ movement }: { movement: Movement }) {
         >
           {CATEGORIES.map((category) => (
             <option key={category} value={category}>
-              {category}
+              {CATEGORY_SHORT[category]}
             </option>
           ))}
         </select>
@@ -215,7 +220,7 @@ function MovementDetail({ id }: { id: string }) {
         <select aria-label="Categoría" value={movement.category} onChange={(event) => setCategory(movement.id, event.target.value as Category)}>
           {CATEGORIES.map((category) => (
             <option key={category} value={category}>
-              {category}
+              {CATEGORY_SHORT[category]}
             </option>
           ))}
         </select>
@@ -224,9 +229,12 @@ function MovementDetail({ id }: { id: string }) {
         <div className="stack">
           <h2>Facturas relacionadas</h2>
           {links.map((invoice) => (
-            <button key={invoice.id} type="button" className="link" onClick={() => openDetail({ type: 'invoice', id: invoice.id })}>
-              {invoice.folio} · {invoice.name} · {money(invoice.total)} · {PAGO_LABEL[paymentStatus(invoice, state.applications)]} · complemento {COMPLEMENTO_LABEL[invoice.complemento]}
-            </button>
+            <div key={invoice.id} className="stack">
+              <button type="button" className="link" onClick={() => openDetail({ type: 'invoice', id: invoice.id })}>
+                {invoice.folio} · {money(invoice.total)} · {PAGO_LABEL[paymentStatus(invoice, state.applications)]} · complemento {COMPLEMENTO_LABEL[invoice.complemento]}
+              </button>
+              <PartyLines name={invoice.name} />
+            </div>
           ))}
         </div>
       )}

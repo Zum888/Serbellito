@@ -1,4 +1,4 @@
-import { ACCOUNTS, CUSTOMERS, SUPPLIERS, accountLabel } from './catalog'
+import { ACCOUNTS, CUSTOMERS, SUPPLIERS, accountLabel, partyAliases, partySearchText, type Party } from './catalog'
 import { daysBetween, formatDate, formatDateLong, money, norm } from './format'
 import type {
   Application,
@@ -78,20 +78,27 @@ export function customerRows(name: string, invoices: Invoice[], applications: Ap
     }))
 }
 
+function aliasHit(normalized: string, alias: string): boolean {
+  const aliasNorm = norm(alias)
+  if (!aliasNorm) return false
+  if (normalized.includes(aliasNorm)) return true
+  const words = aliasNorm.split(' ').filter((word) => word.length > 4)
+  return words.length >= 2 && words.every((word) => normalized.includes(word))
+}
+
 export function findParty(text: string): { name: string; kind: 'supplier' | 'customer' } | null {
   const normalized = norm(text)
   const all = [
-    ...SUPPLIERS.map((party) => ({ name: party.name, kind: 'supplier' as const })),
-    ...CUSTOMERS.map((party) => ({ name: party.name, kind: 'customer' as const })),
+    ...SUPPLIERS.map((party) => ({ party, kind: 'supplier' as const })),
+    ...CUSTOMERS.map((party) => ({ party, kind: 'customer' as const })),
   ]
-  const hits = all.filter((party) => {
-    const partyNorm = norm(party.name)
-    if (normalized.includes(partyNorm)) return true
-    const words = partyNorm.split(' ').filter((word) => word.length > 4)
-    return words.length >= 2 && words.every((word) => normalized.includes(word))
+  const hits = all.filter(({ party }) => partyAliases(party).some((alias) => aliasHit(normalized, alias)))
+  hits.sort((a, b) => {
+    const length = (party: Party) => Math.max(...partyAliases(party).map((alias) => norm(alias).length))
+    return length(b.party) - length(a.party)
   })
-  hits.sort((a, b) => norm(b.name).length - norm(a.name).length)
-  return hits[0] ?? null
+  const hit = hits[0]
+  return hit ? { name: hit.party.name, kind: hit.kind } : null
 }
 
 function significantWords(name: string): string[] {
@@ -107,10 +114,13 @@ export function nameInConcept(concept: string, name: string): boolean {
   return hits.length >= 2
 }
 
-function bestParty(concept: string, parties: { name: string }[]): string | null {
-  const hits = parties.filter((party) => nameInConcept(concept, party.name))
-  hits.sort((a, b) => significantWords(b.name).length - significantWords(a.name).length || b.name.length - a.name.length)
-  return hits[0]?.name ?? null
+function bestParty(concept: string, parties: Party[]): Party | null {
+  const hits = parties.filter((party) => partyAliases(party).some((alias) => nameInConcept(concept, alias)))
+  hits.sort((a, b) => {
+    const score = (party: Party) => Math.max(...partyAliases(party).map((alias) => significantWords(alias).length))
+    return score(b) - score(a) || b.name.length - a.name.length
+  })
+  return hits[0] ?? null
 }
 
 export function isChoiceCase(movement: Movement, invoices: Invoice[], applications: Application[]): boolean {
@@ -170,8 +180,8 @@ export function suggestMovement(
   const payment = paymentOf(draft)
   const direction = draft.cargo > 0 ? 'recibida' : 'emitida'
   const parties = direction === 'recibida' ? SUPPLIERS : CUSTOMERS
-  const partyName = bestParty(draft.concept, parties)
-  const party = parties.find((item) => item.name === partyName)
+  const party = bestParty(draft.concept, parties)
+  const partyName = party?.name ?? null
   if (party && category === 'mercancía') category = party.category
   if (party && category === 'cobros de clientes' && direction === 'recibida') category = party.category
 
@@ -478,7 +488,7 @@ export function filterMovements(
       const folios = linked
         .map((id) => invoices.find((invoice) => invoice.id === id))
         .filter((invoice): invoice is Invoice => Boolean(invoice))
-        .map((invoice) => `${invoice.folio} ${invoice.uuid} ${invoice.name}`)
+        .map((invoice) => `${invoice.folio} ${invoice.uuid} ${partySearchText(invoice.name)} ${invoice.usoCfdi} ${invoice.formaPago}`)
         .join(' ')
       return norm(`${movement.concept} ${movement.reference ?? ''} ${folios} ${accountLabel(movement.accountId)}`).includes(query)
     })
@@ -503,7 +513,7 @@ export function filterInvoices(
       if (filters.from && invoice.issueDate < filters.from) return false
       if (filters.to && invoice.issueDate > filters.to) return false
       if (!query) return true
-      return norm(`${invoice.name} ${invoice.rfc} ${invoice.folio} ${invoice.uuid}`).includes(query)
+      return norm(`${partySearchText(invoice.name)} ${invoice.rfc} ${invoice.folio} ${invoice.uuid} ${invoice.usoCfdi} ${invoice.formaPago} ${invoice.metodo}`).includes(query)
     })
     .sort((a, b) => b.issueDate.localeCompare(a.issueDate) || a.folio.localeCompare(b.folio, 'es-MX'))
 }
@@ -555,4 +565,48 @@ export function movementAccounts(movements: Movement[]): { id: string; label: st
   const known = ACCOUNTS.map((account) => account.id)
   ids.sort((a, b) => known.indexOf(a as (typeof known)[number]) - known.indexOf(b as (typeof known)[number]))
   return ids.map((id) => ({ id, label: accountLabel(id) }))
+}
+
+export function movementAmount(movement: Pick<Movement, 'cargo' | 'abono'>): number {
+  return movement.cargo > 0 ? movement.cargo : movement.abono
+}
+
+export function categoryAmount(movements: Movement[], category: Category, accountId: string): number {
+  return movements
+    .filter((movement) => movement.category === category && movement.accountId === accountId)
+    .reduce((sum, movement) => sum + movementAmount(movement), 0)
+}
+
+export function bankTotals(movements: Movement[], accountId: string): { ingresos: number; gastos: number } {
+  const rows = movements.filter((movement) => movement.accountId === accountId)
+  return {
+    ingresos: rows.reduce((sum, movement) => sum + movement.abono, 0),
+    gastos: rows.reduce((sum, movement) => sum + movement.cargo, 0),
+  }
+}
+
+export type FlowStep = { key: 'factura' | 'pago' | 'complemento'; text: string; review: boolean }
+
+export function invoiceFlow(invoice: Invoice, applications: Application[]): { complete: boolean; steps: FlowStep[] } {
+  const pago = paymentStatus(invoice, applications)
+  const transferPue = invoice.metodo === 'PUE' && invoice.formaPago === '03'
+  const complementoNoAplica = invoice.complemento === 'no_aplica' || transferPue
+  const pagoText =
+    pago === 'pagada' ? 'Pago en banco · Pagado' : pago === 'parcial' ? 'Pago en banco · Parcial' : 'Pago en banco · Sin pago'
+  const complementoText = complementoNoAplica
+    ? 'Complemento · No aplica'
+    : invoice.complemento === 'recibido'
+      ? 'Complemento · Recibido'
+      : 'Complemento · Pendiente'
+  const review = invoice.vigencia === 'vigente' && !complementoNoAplica && invoice.complemento === 'pendiente' && pago === 'pagada'
+  const complete =
+    invoice.vigencia === 'vigente' && pago === 'pagada' && (complementoNoAplica || invoice.complemento === 'recibido')
+  return {
+    complete,
+    steps: [
+      { key: 'factura', text: invoice.vigencia === 'cancelado' ? 'Factura · Cancelada' : 'Factura · Lista', review: false },
+      { key: 'pago', text: pagoText, review: false },
+      { key: 'complemento', text: complementoText, review },
+    ],
+  }
 }

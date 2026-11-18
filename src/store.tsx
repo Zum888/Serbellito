@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { selectedAccountId } from './catalog'
 import { interpret } from './chat'
 import { fingerprint } from './domain'
 import { todayIso, uid } from './format'
@@ -18,11 +19,11 @@ import type {
 } from './types'
 import { pendingBalance } from './domain'
 
-const KEY = 'serbellito.demo.v1'
+const KEY = 'serbellito.demo.v2'
 
 export const EMPTY_BANK_FILTERS: BankFilters = {
   query: '',
-  account: 'todas',
+  account: 'acc-bbva',
   category: 'todas',
   reconciliation: 'todas',
   from: '',
@@ -41,7 +42,7 @@ export const EMPTY_INVOICE_FILTERS: InvoiceFilters = {
 
 function freshState(): AppState {
   return {
-    version: 1,
+    version: 2,
     messages: [],
     movements: SEED.movements,
     invoices: SEED.invoices,
@@ -64,7 +65,8 @@ function loadState(): AppState {
     const raw = localStorage.getItem(KEY)
     if (!raw) return freshState()
     const parsed = JSON.parse(raw) as AppState
-    if (parsed.version !== 1 || parsed.invoices?.length !== 100 || !Array.isArray(parsed.movements)) return freshState()
+    if (parsed.version !== 2 || parsed.invoices?.length !== 100 || !Array.isArray(parsed.movements)) return freshState()
+    if (parsed.invoices.some((invoice) => !invoice.usoCfdi || !invoice.formaPago)) return freshState()
     return parsed
   } catch {
     return freshState()
@@ -85,6 +87,8 @@ type Action =
   | { type: 'invoice-filters'; filters: InvoiceFilters }
   | { type: 'invoice-tab'; tab: InvoiceTab }
   | { type: 'toggle-attention' }
+  | { type: 'select-account'; accountId: string }
+  | { type: 'open-category'; category: Category }
   | { type: 'set-category'; movementId: string; category: Category }
   | { type: 'confirm'; movementId: string; invoiceIds: string[] }
   | { type: 'undo'; movementId: string }
@@ -121,6 +125,21 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, reconcileId: null }
     case 'bank-filters':
       return { ...state, bankFilters: action.filters, route: 'bancos', detail: null, detailBack: null, reconcileId: null }
+    case 'select-account':
+      return { ...state, bankFilters: { ...state.bankFilters, account: action.accountId } }
+    case 'open-category':
+      return {
+        ...state,
+        route: 'bancos',
+        detail: null,
+        detailBack: null,
+        reconcileId: null,
+        bankFilters: {
+          ...EMPTY_BANK_FILTERS,
+          account: selectedAccountId(state.bankFilters.account),
+          category: action.category,
+        },
+      }
     case 'invoice-filters':
       return { ...state, invoiceFilters: action.filters }
     case 'invoice-tab':
@@ -240,6 +259,8 @@ type StoreValue = {
   openReconcile: (movementId: string) => void
   closeReconcile: () => void
   setBankFilters: (filters: BankFilters) => void
+  selectAccount: (accountId: string) => void
+  openCategory: (category: Category) => void
   setInvoiceFilters: (filters: InvoiceFilters) => void
   setInvoiceTab: (tab: InvoiceTab) => void
   toggleAttention: () => void
@@ -340,6 +361,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       openReconcile: (movementId) => dispatch({ type: 'open-reconcile', movementId }),
       closeReconcile: () => dispatch({ type: 'close-reconcile' }),
       setBankFilters: (filters) => dispatch({ type: 'bank-filters', filters }),
+      selectAccount: (accountId) => dispatch({ type: 'select-account', accountId }),
+      openCategory: (category) => dispatch({ type: 'open-category', category }),
       setInvoiceFilters: (filters) => dispatch({ type: 'invoice-filters', filters }),
       setInvoiceTab: (tab) => dispatch({ type: 'invoice-tab', tab }),
       toggleAttention: () => dispatch({ type: 'toggle-attention' }),

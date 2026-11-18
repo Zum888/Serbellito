@@ -3,8 +3,9 @@ import { COMPANY } from './catalog'
 import { attentionItems } from './domain'
 import { useStore } from './store'
 import { Bancos } from './ui/bancos'
+import { Categorias } from './ui/categorias'
 import { Facturas } from './ui/facturas'
-import { IconBank, IconFile, IconHome, IconMenu, IconPanel } from './ui/icons'
+import { IconBank, IconCategories, IconFile, IconHome, IconMenu, IconPanel } from './ui/icons'
 import { AttentionList, AttentionRail, Inicio, ReconcilePanel } from './ui/inicio'
 import { UploadDialog } from './ui/upload'
 import type { AttentionItem } from './types'
@@ -35,7 +36,7 @@ export function App() {
     else if (item.invoiceId) openDetail({ type: 'invoice', id: item.invoiceId })
   }
 
-  function go(route: 'inicio' | 'bancos' | 'facturas') {
+  function go(route: 'inicio' | 'bancos' | 'facturas' | 'categorias') {
     setMenu(false)
     navigate(route)
   }
@@ -68,6 +69,10 @@ export function App() {
             <IconFile />
             <span>Facturas SAT</span>
           </button>
+          <button type="button" className={state.route === 'categorias' ? 'nav on' : 'nav'} onClick={() => go('categorias')}>
+            <IconCategories />
+            <span>Categorías</span>
+          </button>
         </nav>
         <button type="button" className="reset" onClick={() => setConfirmReset(true)}>
           Reiniciar demo
@@ -93,6 +98,7 @@ export function App() {
           {state.route === 'inicio' && <Inicio />}
           {state.route === 'bancos' && <Bancos />}
           {state.route === 'facturas' && <Facturas />}
+          {state.route === 'categorias' && <Categorias />}
         </div>
         {state.route === 'inicio' && (
           <aside className="rail">{state.reconcileId ? <ReconcilePanel key={state.reconcileId} /> : <AttentionRail onOpen={openItem} />}</aside>

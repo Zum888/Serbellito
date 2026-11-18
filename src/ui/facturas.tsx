@@ -1,9 +1,10 @@
-import { attentionItems, filterInvoices, invoiceSentences, partiesFor, paymentStatus, pendingBalance } from '../domain'
-import { COMPLEMENTO_LABEL, PAGO_LABEL } from '../domain'
+import { formaLabel, partyByName, usoLabel } from '../catalog'
+import { attentionItems, filterInvoices, invoiceFlow, invoiceSentences, partiesFor, pendingBalance } from '../domain'
 import { formatDate, money } from '../format'
 import { EMPTY_INVOICE_FILTERS, useStore } from '../store'
 import { complementoPdf, invoicePdf } from '../pdf'
 import { MxDate } from './fields'
+import { PartyLines } from './party'
 
 export function Facturas() {
   const { state, setInvoiceTab, setInvoiceFilters, openDetail, navigate } = useStore()
@@ -40,7 +41,7 @@ export function Facturas() {
           <span>Buscar</span>
           <input
             value={filters.query}
-            placeholder="Nombre, RFC, folio o UUID"
+            placeholder="Subnombre, RFC, folio o UUID"
             onChange={(event) => setInvoiceFilters({ ...filters, query: event.target.value })}
           />
         </label>
@@ -48,11 +49,14 @@ export function Facturas() {
           <span>{state.invoiceTab === 'recibidas' ? 'Proveedor' : 'Cliente'}</span>
           <select value={filters.party} onChange={(event) => setInvoiceFilters({ ...filters, party: event.target.value })}>
             <option value="todas">Todos</option>
-            {parties.map((party) => (
-              <option key={party} value={party}>
-                {party}
-              </option>
-            ))}
+            {parties.map((party) => {
+              const known = partyByName(party)
+              return (
+                <option key={party} value={party}>
+                  {known ? `${known.subnombre} · ${known.razonSocial}` : party}
+                </option>
+              )
+            })}
           </select>
         </label>
         <label className="field">
@@ -100,41 +104,54 @@ export function Facturas() {
           </button>
         </div>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Folio</th>
-                <th>{state.invoiceTab === 'recibidas' ? 'Proveedor' : 'Cliente'}</th>
-                <th>RFC</th>
-                <th>Total</th>
-                <th>Saldo</th>
-                <th>Pago</th>
-                <th>Complemento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((invoice) => {
-                const pago = paymentStatus(invoice, state.applications)
-                return (
-                  <tr key={invoice.id} className="click" onClick={() => openDetail({ type: 'invoice', id: invoice.id })}>
-                    <td>{formatDate(invoice.issueDate)}</td>
-                    <td>{invoice.folio}</td>
-                    <td>{invoice.name}</td>
-                    <td>{invoice.rfc}</td>
-                    <td className="num">{money(invoice.total)}</td>
-                    <td className="num">{money(pendingBalance(invoice, state.applications))}</td>
-                    <td className={pago === 'pagada' ? 'ok' : pago === 'parcial' ? 'review' : undefined}>{PAGO_LABEL[pago]}</td>
-                    <td className={invoice.complemento === 'pendiente' ? 'review' : invoice.complemento === 'recibido' ? 'ok' : 'muted'}>
-                      {COMPLEMENTO_LABEL[invoice.complemento]}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ul className="scan">
+          {rows.map((invoice) => {
+            const flow = invoiceFlow(invoice, state.applications)
+            return (
+              <li key={invoice.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="scan-row"
+                  onClick={() => openDetail({ type: 'invoice', id: invoice.id })}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    event.preventDefault()
+                    openDetail({ type: 'invoice', id: invoice.id })
+                  }}
+                >
+                  <div className="scan-top">
+                    <strong>{invoice.folio}</strong>
+                    <span className="scan-side">
+                      {flow.complete && (
+                        <span className="complete">
+                          <span className="complete-dot" aria-hidden="true" />
+                          Completo
+                        </span>
+                      )}
+                      <span className="num">{money(invoice.total)}</span>
+                    </span>
+                  </div>
+                  <div>{usoLabel(invoice.usoCfdi)}</div>
+                  <div>
+                    {formaLabel(invoice.formaPago)} · {invoice.metodo}
+                  </div>
+                  <div className="steps">
+                    {flow.steps.map((step) => (
+                      <span key={step.key} className={step.review ? 'review' : 'muted'}>
+                        {step.text}
+                      </span>
+                    ))}
+                  </div>
+                  <PartyLines name={invoice.name} compact />
+                  <span className="muted">
+                    {formatDate(invoice.issueDate)} · saldo {money(pendingBalance(invoice, state.applications))}
+                  </span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )
@@ -160,6 +177,7 @@ function InvoiceDetail({ id }: { id: string }) {
     .filter((entry) => entry.movement)
   const suggestion = state.movements.find((movement) => movement.reconciliation === 'por_revisar' && movement.suggestionIds.includes(invoice.id))
   const printed = invoicePdf(invoice)
+  const flow = invoiceFlow(invoice, state.applications)
 
   return (
     <div className="page detail">
@@ -170,9 +188,23 @@ function InvoiceDetail({ id }: { id: string }) {
         {invoice.folio}
         {invoice.vigencia === 'cancelado' ? <span className="muted"> · Cancelada</span> : null}
       </h1>
-      <p className="muted">
-        {invoice.name} · RFC {invoice.rfc}
+      <PartyLines name={invoice.name} />
+      <p>
+        {usoLabel(invoice.usoCfdi)} · {formaLabel(invoice.formaPago)} · {invoice.metodo}
       </p>
+      <div className="steps">
+        {flow.steps.map((step) => (
+          <span key={step.key} className={step.review ? 'review' : 'muted'}>
+            {step.text}
+          </span>
+        ))}
+        {flow.complete && (
+          <span className="complete">
+            <span className="complete-dot" aria-hidden="true" />
+            Completo
+          </span>
+        )}
+      </div>
       <p className="muted uuid">UUID {invoice.uuid}</p>
       <div className="sentences">
         {invoiceSentences(invoice, state.invoices, state.movements, state.applications, state.complementos).map((line) => (

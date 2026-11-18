@@ -1,6 +1,8 @@
-import { CUSTOMERS, SUPPLIERS } from './catalog'
+import { CUSTOMERS, PUE_FORMAS, SUPPLIERS } from './catalog'
 import {
   attentionItems,
+  findParty,
+  invoiceFlow,
   invoiceReconciliation,
   isChoiceCase,
   paymentStatus,
@@ -24,8 +26,13 @@ function nextUuid(): string {
   return makeUuid(uuidN)
 }
 
-function invoice(partial: Invoice): Invoice {
-  return partial
+function invoice(partial: Omit<Invoice, 'usoCfdi' | 'formaPago'> & Partial<Pick<Invoice, 'usoCfdi' | 'formaPago'>>): Invoice {
+  const party = [...SUPPLIERS, ...CUSTOMERS].find((item) => item.name === partial.name)
+  const usoCfdi =
+    partial.usoCfdi ??
+    (partial.vigencia === 'cancelado' ? 'S01' : party?.category === 'mercancía' || partial.direction === 'emitida' ? 'G01' : 'G03')
+  const formaPago = partial.formaPago ?? (partial.metodo === 'PUE' ? '03' : '99')
+  return { ...partial, usoCfdi, formaPago }
 }
 
 export type SeedData = {
@@ -164,8 +171,9 @@ function build(): SeedData {
     direction: 'recibida',
     folio: 'F-310',
     uuid: nextUuid(),
-    rfc: 'FDP030911R55',
+    rfc: '2437328834',
     name: 'Fletes del Pacífico',
+    formaPago: '03',
     issueDate: '2026-10-30',
     total: cents(6480),
     metodo: 'PUE',
@@ -269,6 +277,7 @@ function build(): SeedData {
       vigencia: canceled ? 'cancelado' : 'vigente',
       complemento: canceled || metodo === 'PUE' ? 'no_aplica' : 'recibido',
       concept: supplier.concept,
+      formaPago: metodo === 'PUE' ? PUE_FORMAS[i % PUE_FORMAS.length] : '99',
     }))
     if (canceled) continue
     linkPaid(entry, {
@@ -304,6 +313,7 @@ function build(): SeedData {
       vigencia: canceled ? 'cancelado' : 'vigente',
       complemento: 'no_aplica',
       concept: customer.concept,
+      formaPago: PUE_FORMAS[i % PUE_FORMAS.length],
     }))
     if (canceled) continue
     linkPaid(entry, {
@@ -543,6 +553,35 @@ function assertSeed(data: SeedData) {
   if (suggested[3].reconciliation !== 'no_requiere') throw new Error('Commission should not need an invoice')
   if (foliosOf(suggested[4]) !== 'E-221') throw new Error(`Collection match ${foliosOf(suggested[4])}`)
   if (suggested[5].suggestionIds.length !== 0) throw new Error('Altos should stay unmatched')
+  const fletes = SUPPLIERS.find((party) => party.name === 'Fletes del Pacífico')
+  if (
+    !fletes ||
+    fletes.rfc !== '2437328834' ||
+    fletes.razonSocial !== 'Transportes Marítimos SA de CV' ||
+    fletes.nombreComercial !== 'Transportes Pacífico' ||
+    fletes.subnombre !== 'Transportes Vallarta'
+  ) {
+    throw new Error('Fletes identity changed')
+  }
+  if (SUPPLIERS.some((party) => party.name !== 'Fletes del Pacífico' && (party.rfc.length < 12 || party.rfc.length > 13))) {
+    throw new Error('Supplier RFC length')
+  }
+  if (findParty('Transportes Vallarta')?.name !== 'Fletes del Pacífico') throw new Error('Subnombre search missed Vallarta')
+  if (findParty('Transportes Sierra Madre')?.name !== 'Transportes Sierra Madre') throw new Error('Sierra search collided')
+  const f310 = data.invoices.find((item) => item.id === 'inv-f310')!
+  if (f310.rfc !== '2437328834' || f310.formaPago !== '03' || f310.usoCfdi !== 'G03') throw new Error('F-310 fiscal fields')
+  if (invoiceFlow(f310, data.applications).complete) throw new Error('Unpaid PUE should not be complete')
+  const r055flow = invoiceFlow(data.invoices.find((item) => item.id === 'inv-r055')!, data.applications)
+  if (r055flow.complete || !r055flow.steps.some((step) => step.review)) throw new Error('R-055 must stay incomplete')
+  const paidTransfer = data.invoices.find(
+    (item) =>
+      item.metodo === 'PUE' &&
+      item.formaPago === '03' &&
+      item.vigencia === 'vigente' &&
+      paymentStatus(item, data.applications) === 'pagada',
+  )
+  if (!paidTransfer || !invoiceFlow(paidTransfer, data.applications).complete) throw new Error('Paid PUE transfer should be complete')
+  if (paidTransfer.complemento !== 'no_aplica') throw new Error('PUE transfer should not require a complemento')
 }
 
 export const SEED = build()

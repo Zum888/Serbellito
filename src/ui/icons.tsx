@@ -30,6 +30,14 @@ export function IconBank() {
   )
 }
 
+export function IconCategories() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 6h6v6H5zM13 6h6v6h-6zM5 14h6v6H5zM13 14h6v6h-6z" />
+    </svg>
+  )
+}
+
 export function IconFile() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
