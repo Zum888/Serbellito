@@ -409,7 +409,7 @@ tr.fresh { background: #f7f6f4; }
 }
 .loose-strip span:last-child { color: var(--muted); font-size: 13px; }
 .loose-strip.on { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.loose-panel { margin: 0 0 16px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; padding: 2px 12px 8px; }
+.loose-panel { margin: 0 0 12px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; padding: 8px 12px 6px; }
 .unmatched { margin-top: 0; }
 .ledger { width: 100%; }
 .ledger td { padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -425,13 +425,13 @@ tr.fresh { background: #f7f6f4; }
 .thin-list li + li { border-top: 1px solid var(--line); }
 .thin-list button { width: 100%; display: flex; justify-content: space-between; gap: 12px; text-align: left; padding: 6px 0; }
 .thin-list button span { color: var(--muted); font-size: 13px; }
-.unmatched h2 { font-size: 18px; margin-bottom: 4px; }
-.unmatched h3 { font-size: 14px; margin: 0 0 8px; }
-.unmatched-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 14px; }
-.unmatched ul { list-style: none; margin: 0; padding: 0; }
+.unmatched h3 { font-size: 13px; margin: 0 0 2px; color: var(--muted); font-weight: 600; }
+.unmatched-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 0; }
+.unmatched ul { list-style: none; margin: 0; padding: 0; max-height: 152px; overflow: auto; }
 .unmatched li + li { border-top: 1px solid var(--line); }
-.unmatched button { width: 100%; text-align: left; padding: 8px 0; display: flex; flex-direction: column; gap: 2px; }
-.unmatched button span { color: var(--muted); font-size: 13px; }
+.unmatched button { width: 100%; text-align: left; padding: 7px 2px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.unmatched button strong { flex: none; }
+.unmatched button span { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes fill-dot {
   from { transform: scale(0.4); }
   to { transform: scale(1); }

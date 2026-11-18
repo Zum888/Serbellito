@@ -252,8 +252,6 @@ function Unmatched({
 }) {
   return (
     <section className="unmatched loose-panel" data-testid="sin-relacion">
-      <h2>Sin relación</h2>
-      <p className="muted">La conciliación automática no las cubrió. Revísalas a mano.</p>
       <div className="unmatched-cols">
         <div>
           <h3>Facturas sin relación</h3>
