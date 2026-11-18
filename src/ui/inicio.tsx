@@ -333,6 +333,9 @@ export function Inicio() {
             <button type="button" data-testid="suggestion-constancia" onClick={() => ask('Pedir mi constancia')}>
               Pedir mi constancia
             </button>
+            <button type="button" data-testid="suggestion-opinion" onClick={() => ask('Opinión de cumplimiento')}>
+              Opinión de cumplimiento
+            </button>
           </div>
         </div>
       </div>

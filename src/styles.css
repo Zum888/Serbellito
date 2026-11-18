@@ -135,7 +135,7 @@ strong { font-weight: 650; }
   font-weight: 650;
   pointer-events: none;
 }
-.suggestions { display: flex; gap: 18px; margin-top: 14px; }
+.suggestions { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; }
 .suggestions button { color: var(--muted); font-size: 14px; }
 .suggestions button:hover { color: var(--blue); }
 
