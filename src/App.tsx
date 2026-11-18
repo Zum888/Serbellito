@@ -8,6 +8,7 @@ import { Facturas } from './ui/facturas'
 import { IconBank, IconCategories, IconFile, IconHome, IconMenu, IconPanel, IconPeople } from './ui/icons'
 import { Personas } from './ui/personas'
 import { AttentionList, AttentionRail, Inicio, ReconcilePanel } from './ui/inicio'
+import { MatchPanel } from './ui/match'
 import { UploadDialog } from './ui/upload'
 import type { AttentionItem } from './types'
 
@@ -17,6 +18,8 @@ export function App() {
   const [sheet, setSheet] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const items = attentionItems(state)
+  const matching =
+    (state.route === 'facturas' && state.detail?.type === 'invoice') || (state.route === 'bancos' && state.detail?.type === 'movement')
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -43,7 +46,7 @@ export function App() {
   }
 
   return (
-    <div className={`shell${state.reconcileId ? ' reconciling' : ''}${state.sidebarCollapsed ? ' is-collapsed' : ''}`}>
+    <div className={`shell${state.reconcileId ? ' reconciling' : ''}${matching ? ' matching' : ''}${state.sidebarCollapsed ? ' is-collapsed' : ''}`}>
       <aside className={`sidebar${state.sidebarCollapsed ? ' collapsed' : ''}${menu ? ' mobile-open' : ''}`}>
         <div className="brand">
           <div className="brand-top">
@@ -108,6 +111,11 @@ export function App() {
         </div>
         {state.route === 'inicio' && (
           <aside className="rail">{state.reconcileId ? <ReconcilePanel key={state.reconcileId} /> : <AttentionRail onOpen={openItem} />}</aside>
+        )}
+        {matching && (
+          <aside className="rail">
+            <MatchPanel />
+          </aside>
         )}
       </div>
       {sheet && (

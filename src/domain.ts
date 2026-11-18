@@ -238,6 +238,42 @@ export function eligibleInvoices(movement: Movement, invoices: Invoice[], applic
     .sort((a, b) => a.name.localeCompare(b.name, 'es-MX') || a.folio.localeCompare(b.folio, 'es-MX'))
 }
 
+export function applyIds(movement: Movement, invoice: Invoice, invoices: Invoice[], applications: Application[]): string[] | null {
+  if (movement.reconciliation === 'confirmada' || movement.reconciliation === 'no_requiere') return null
+  const direction = movement.cargo > 0 ? 'recibida' : 'emitida'
+  if (invoice.direction !== direction || invoice.vigencia !== 'vigente') return null
+  const payment = paymentOf(movement)
+  const pending = pendingBalance(invoice, applications)
+  if (pending <= 0 || payment <= 0) return null
+  const suggested = movement.suggestionIds.filter((id) => {
+    const item = invoices.find((candidate) => candidate.id === id)
+    return Boolean(item && item.vigencia === 'vigente' && pendingBalance(item, applications) > 0)
+  })
+  if (suggested.includes(invoice.id) && suggested.length > 1 && selectedPending(suggested, invoices, applications) === payment && !isChoiceCase(movement, invoices, applications)) {
+    return suggested
+  }
+  const named = suggested.includes(invoice.id) || nameInConcept(movement.concept, invoice.name)
+  if (!named) return null
+  if (pending === payment || pending > payment) return [invoice.id]
+  return null
+}
+
+export function movementsForInvoice(invoice: Invoice, movements: Movement[], invoices: Invoice[], applications: Application[]): Movement[] {
+  return movements
+    .filter((movement) => applyIds(movement, invoice, invoices, applications))
+    .sort((a, b) => {
+      const rank = (movement: Movement) => (movement.suggestionIds.includes(invoice.id) ? 0 : 1)
+      return rank(a) - rank(b) || b.date.localeCompare(a.date) || a.id.localeCompare(b.id)
+    })
+}
+
+export function invoicesForMovement(movement: Movement, invoices: Invoice[], applications: Application[]): Invoice[] {
+  return eligibleInvoices(movement, invoices, applications).sort((a, b) => {
+    const rank = (invoice: Invoice) => (movement.suggestionIds.includes(invoice.id) ? 0 : 1)
+    return rank(a) - rank(b) || a.folio.localeCompare(b.folio, 'es-MX')
+  })
+}
+
 export function selectedPending(ids: string[], invoices: Invoice[], applications: Application[]): number {
   return ids.reduce((sum, id) => {
     const invoice = invoices.find((item) => item.id === id)

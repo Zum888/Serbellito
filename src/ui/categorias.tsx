@@ -12,7 +12,6 @@ import {
 import { categoryAmount } from '../domain'
 import { money, norm } from '../format'
 import { useStore } from '../store'
-import { PartyLines } from './party'
 
 export function Categorias() {
   const { state, saveRule, createCategory } = useStore()
@@ -67,7 +66,7 @@ export function Categorias() {
       <header className="page-head">
         <div>
           <h1>Categorías</h1>
-          <p className="muted">Una regla por RFC. Los movimientos nuevos la toman solos.</p>
+          <p className="muted">Asigna una categoría a un RFC. Los movimientos nuevos de ese proveedor o cliente se clasifican solos.</p>
         </div>
       </header>
       <form
@@ -109,9 +108,7 @@ export function Categorias() {
           save()
         }}
       >
-        <p className="muted">
-          Un proveedor siempre cae en un gasto, por ejemplo pago por construcción. Un cliente, en un concepto de ingreso.
-        </p>
+        <p className="muted">Un proveedor cae en un gasto, por ejemplo pago por construcción. Un cliente, en un ingreso.</p>
         <div className="rule-grid">
           <label className="field">
             <span>Quién</span>
@@ -152,7 +149,7 @@ export function Categorias() {
             </label>
           )}
           <button type="submit" className="btn quiet">
-            Guardar regla
+            Usar siempre para este RFC
           </button>
         </div>
       </form>
@@ -167,18 +164,16 @@ export function Categorias() {
               <span>{categoryLabel(row.category)}</span>
               <span className="num">{money(row.amount)}</span>
             </div>
-            {row.rules.length > 0 && (
-              <ul className="party-list">
-                {row.rules.map((rule) => {
-                  const party = partyByRfc(rule.rfc)
-                  return (
-                    <li key={rule.rfc}>
-                      {party ? <PartyLines party={party} /> : <p className="muted">{rule.rfc}</p>}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+            {row.rules.map((rule) => {
+              const party = partyByRfc(rule.rfc)
+              const edit = state.partyProfiles.find((item) => item.rfc === rule.rfc)
+              const who = edit?.subnombre || party?.subnombre || rule.rfc
+              return (
+                <p key={rule.rfc} className="rule-line">
+                  {who} · {rule.rfc}
+                </p>
+              )
+            })}
           </li>
         ))}
       </ul>
