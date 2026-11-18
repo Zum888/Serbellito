@@ -1,13 +1,58 @@
-import { formaLabel, partyByName, usoLabel } from '../catalog'
-import { attentionItems, filterInvoices, invoiceFlow, invoiceSentences, partiesFor, pendingBalance } from '../domain'
+import { useEffect, useState } from 'react'
+import { accountLabel, formaLabel, partyByName, usoLabel } from '../catalog'
+import {
+  attentionItems,
+  filterInvoices,
+  invoiceFlow,
+  invoiceSentences,
+  invoicesWithoutRelation,
+  movementsWithoutRelation,
+  partiesFor,
+  visibleFlow,
+} from '../domain'
 import { formatDate, money } from '../format'
 import { EMPTY_INVOICE_FILTERS, useStore } from '../store'
 import { complementoPdf, invoicePdf } from '../pdf'
+import type { FlowStep } from '../domain'
+import type { Movement } from '../types'
 import { MxDate } from './fields'
 import { PartyLines } from './party'
 
+const STEP_LABEL: Record<FlowStep['key'], string> = {
+  factura: 'Factura',
+  pago: 'Pago bancario',
+  complemento: 'Complemento',
+}
+
+function StatusDot({ done, fresh, label, detail }: { done: boolean; fresh: boolean; label: string; detail: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <button
+      type="button"
+      className={`status-hit${done ? ' done' : ''}${fresh ? ' fresh' : ''}${open ? ' open' : ''}`}
+      aria-label={`${label}: ${detail}`}
+      onClick={(event) => {
+        event.stopPropagation()
+        setOpen((value) => !value)
+      }}
+    >
+      <span className="status-mark" />
+      <span className="status-tip">{detail}</span>
+    </button>
+  )
+}
+
 export function Facturas() {
-  const { state, setInvoiceTab, setInvoiceFilters, openDetail, navigate } = useStore()
+  const { state, setInvoiceTab, setInvoiceFilters, openDetail, openReconcile, navigate } = useStore()
+  const currentId = state.guided?.phase === 'running' ? state.guided.order[state.guided.step - 1] : undefined
+  useEffect(() => {
+    if (!currentId) return
+    document.querySelector(`[data-guided-id="${currentId}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [currentId])
+  useEffect(() => {
+    if (state.guided?.phase !== 'done') return
+    document.querySelector('[data-testid="sin-relacion"]')?.scrollIntoView({ block: 'start' })
+  }, [state.guided?.phase])
   if (state.detail?.type === 'invoice') return <InvoiceDetail id={state.detail.id} />
 
   const total = state.invoices.filter((invoice) => invoice.direction === (state.invoiceTab === 'recibidas' ? 'recibida' : 'emitida')).length
@@ -96,6 +141,11 @@ export function Facturas() {
       <p className="count" data-testid="invoice-count">
         {rows.length} de {total}
       </p>
+      {state.guided?.phase === 'running' && (
+        <p className="count" data-testid="guided-progress">
+          Relacionando con el banco · {state.guided.step} de {state.guided.order.length}
+        </p>
+      )}
       {rows.length === 0 ? (
         <div className="empty">
           <p>Ninguna factura coincide con estos filtros.</p>
@@ -104,56 +154,115 @@ export function Facturas() {
           </button>
         </div>
       ) : (
-        <ul className="scan">
-          {rows.map((invoice) => {
-            const flow = invoiceFlow(invoice, state.applications)
-            return (
-              <li key={invoice.id}>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="scan-row"
-                  onClick={() => openDetail({ type: 'invoice', id: invoice.id })}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') return
-                    event.preventDefault()
-                    openDetail({ type: 'invoice', id: invoice.id })
-                  }}
-                >
-                  <div className="scan-top">
-                    <strong>{invoice.folio}</strong>
-                    <span className="scan-side">
-                      {flow.complete && (
-                        <span className="complete">
-                          <span className="complete-dot" aria-hidden="true" />
-                          Completo
-                        </span>
-                      )}
-                      <span className="num">{money(invoice.total)}</span>
-                    </span>
-                  </div>
-                  <div>{usoLabel(invoice.usoCfdi)}</div>
-                  <div>
-                    {formaLabel(invoice.formaPago)} · {invoice.metodo}
-                  </div>
-                  <div className="steps">
+        <div className="table-wrap">
+          <table className="invoice-table">
+            <thead>
+              <tr>
+                <th>Folio</th>
+                <th>Uso CFDI</th>
+                <th>Forma de pago</th>
+                <th>Método</th>
+                <th>Total</th>
+                <th className="status-col">Factura</th>
+                <th className="status-col">Pago bancario</th>
+                <th className="status-col">Complemento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((invoice) => {
+                const flow = visibleFlow(invoice, state.applications, state.guided)
+                const fresh = currentId === invoice.id
+                return (
+                  <tr
+                    key={invoice.id}
+                    className={`click${fresh ? ' fresh' : ''}`}
+                    data-guided-id={invoice.id}
+                    onClick={() => openDetail({ type: 'invoice', id: invoice.id })}
+                  >
+                    <td>
+                      <strong>{invoice.folio}</strong>
+                      {flow.complete && <div className="complete">Completo</div>}
+                    </td>
+                    <td>{usoLabel(invoice.usoCfdi)}</td>
+                    <td>{formaLabel(invoice.formaPago)}</td>
+                    <td>{invoice.metodo}</td>
+                    <td className="num">{money(invoice.total)}</td>
                     {flow.steps.map((step) => (
-                      <span key={step.key} className={step.review ? 'review' : 'muted'}>
-                        {step.text}
-                      </span>
+                      <td key={step.key} className="status-col">
+                        <StatusDot done={step.done} fresh={fresh && step.done} label={STEP_LABEL[step.key]} detail={step.text} />
+                      </td>
                     ))}
-                  </div>
-                  <PartyLines name={invoice.name} compact />
-                  <span className="muted">
-                    {formatDate(invoice.issueDate)} · saldo {money(pendingBalance(invoice, state.applications))}
-                  </span>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {state.guided?.phase === 'done' && (
+        <Unmatched
+          invoices={invoicesWithoutRelation(state.invoices, state.applications)}
+          movements={movementsWithoutRelation(state.movements, state.applications)}
+          onInvoice={(id) => openDetail({ type: 'invoice', id })}
+          onMovement={(movement) =>
+            movement.reconciliation === 'por_revisar'
+              ? openReconcile(movement.id)
+              : openDetail({ type: 'movement', id: movement.id })
+          }
+        />
       )}
     </div>
+  )
+}
+
+function Unmatched({
+  invoices,
+  movements,
+  onInvoice,
+  onMovement,
+}: {
+  invoices: ReturnType<typeof invoicesWithoutRelation>
+  movements: Movement[]
+  onInvoice: (id: string) => void
+  onMovement: (movement: Movement) => void
+}) {
+  return (
+    <section className="unmatched" data-testid="sin-relacion">
+      <h2>Sin relación</h2>
+      <p className="muted">La conciliación automática no las cubrió. Revísalas a mano.</p>
+      <div className="unmatched-cols">
+        <div>
+          <h3>Facturas sin relación</h3>
+          <ul>
+            {invoices.map((invoice) => (
+              <li key={invoice.id}>
+                <button type="button" onClick={() => onInvoice(invoice.id)}>
+                  <strong>{invoice.folio}</strong>
+                  <span>
+                    {invoice.name} · {money(invoice.total)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3>Movimientos sin relación</h3>
+          <ul>
+            {movements.map((movement) => (
+              <li key={movement.id}>
+                <button type="button" onClick={() => onMovement(movement)}>
+                  <strong>{formatDate(movement.date)}</strong>
+                  <span>
+                    {movement.concept} · {accountLabel(movement.accountId)} · {money(movement.cargo || movement.abono)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -192,18 +301,14 @@ function InvoiceDetail({ id }: { id: string }) {
       <p>
         {usoLabel(invoice.usoCfdi)} · {formaLabel(invoice.formaPago)} · {invoice.metodo}
       </p>
-      <div className="steps">
+      <div className="detail-strip">
         {flow.steps.map((step) => (
-          <span key={step.key} className={step.review ? 'review' : 'muted'}>
-            {step.text}
+          <span key={step.key} className="detail-step">
+            <StatusDot done={step.done} fresh={false} label={STEP_LABEL[step.key]} detail={step.text} />
+            <span className="muted">{STEP_LABEL[step.key]}</span>
           </span>
         ))}
-        {flow.complete && (
-          <span className="complete">
-            <span className="complete-dot" aria-hidden="true" />
-            Completo
-          </span>
-        )}
+        {flow.complete && <span className="complete">Completo</span>}
       </div>
       <p className="muted uuid">UUID {invoice.uuid}</p>
       <div className="sentences">

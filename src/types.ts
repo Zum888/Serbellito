@@ -116,8 +116,15 @@ export type ChatMessage = {
   actions?: { label: string; action: ChatAction }[]
 }
 
+export type GuidedFlow = {
+  phase: 'chat' | 'running' | 'done'
+  order: string[]
+  step: number
+}
+
 export type AppState = {
   version: 2
+  guided: GuidedFlow | null
   messages: ChatMessage[]
   movements: Movement[]
   invoices: Invoice[]

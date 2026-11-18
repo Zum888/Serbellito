@@ -264,6 +264,16 @@ function Composer() {
   )
 }
 
+function FlowButton() {
+  const { state, startGuidedFlow } = useStore()
+  const busy = state.guided?.phase === 'chat' || state.guided?.phase === 'running'
+  return (
+    <button type="button" className="btn" data-testid="flujo-completo" disabled={busy} onClick={startGuidedFlow}>
+      Flujo completo
+    </button>
+  )
+}
+
 export function Inicio() {
   const { state, ask, openUpload } = useStore()
   const started = state.messages.some((message) => message.role === 'user')
@@ -280,6 +290,9 @@ export function Inicio() {
           <h1 data-testid="greeting">Buenas tardes, Óscar</h1>
           <p className="lede">Hay una transferencia que me gustaría revisar contigo</p>
           <Composer />
+          <div className="flow-launch">
+            <FlowButton />
+          </div>
           <div className="suggestions">
             <button type="button" data-testid="suggestion-upload" onClick={() => openUpload()}>
               Subir estado de cuenta
@@ -302,6 +315,9 @@ export function Inicio() {
         <div ref={end} />
       </div>
       <div className="dock">
+        <div className="flow-launch">
+          <FlowButton />
+        </div>
         <Composer />
       </div>
     </div>

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useS
 import type { ReactNode } from 'react'
 import { selectedAccountId } from './catalog'
 import { interpret } from './chat'
-import { fingerprint } from './domain'
+import { fingerprint, guidedOrder } from './domain'
 import { todayIso, uid } from './format'
 import { SEED } from './seed'
 import type {
@@ -43,6 +43,7 @@ export const EMPTY_INVOICE_FILTERS: InvoiceFilters = {
 function freshState(): AppState {
   return {
     version: 2,
+    guided: null,
     messages: [],
     movements: SEED.movements,
     invoices: SEED.invoices,
@@ -67,6 +68,7 @@ function loadState(): AppState {
     const parsed = JSON.parse(raw) as AppState
     if (parsed.version !== 2 || parsed.invoices?.length !== 100 || !Array.isArray(parsed.movements)) return freshState()
     if (parsed.invoices.some((invoice) => !invoice.usoCfdi || !invoice.formaPago)) return freshState()
+    if (!parsed.guided || !Array.isArray(parsed.guided.order) || parsed.guided.phase === 'chat') parsed.guided = null
     return parsed
   } catch {
     return freshState()
@@ -95,6 +97,9 @@ type Action =
   | { type: 'complemento'; invoiceId: string }
   | { type: 'import'; movements: Movement[] }
   | { type: 'party'; direction: 'recibida' | 'emitida'; name: string }
+  | { type: 'guided-arm'; order: string[] }
+  | { type: 'guided-run' }
+  | { type: 'guided-tick' }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -241,6 +246,40 @@ function reducer(state: AppState, action: Action): AppState {
         invoiceTab: action.direction === 'recibida' ? 'recibidas' : 'emitidas',
         invoiceFilters: { ...EMPTY_INVOICE_FILTERS, party: action.name },
       }
+    case 'guided-arm':
+      return {
+        ...state,
+        route: 'inicio',
+        detail: null,
+        detailBack: null,
+        reconcileId: null,
+        guided: { phase: 'chat', order: action.order, step: 0 },
+      }
+    case 'guided-run':
+      if (!state.guided) return state
+      return {
+        ...state,
+        route: 'facturas',
+        detail: null,
+        detailBack: null,
+        reconcileId: null,
+        invoiceTab: 'recibidas',
+        invoiceFilters: EMPTY_INVOICE_FILTERS,
+        guided: { ...state.guided, phase: 'running', step: 0 },
+      }
+    case 'guided-tick': {
+      if (!state.guided || state.guided.phase !== 'running') return state
+      const next = state.guided.step + 1
+      if (next >= state.guided.order.length) {
+        return { ...state, invoiceTab: 'recibidas', guided: { ...state.guided, step: state.guided.order.length, phase: 'done' } }
+      }
+      const revealed = state.invoices.find((invoice) => invoice.id === state.guided?.order[next - 1])
+      return {
+        ...state,
+        invoiceTab: revealed?.direction === 'emitida' ? 'emitidas' : 'recibidas',
+        guided: { ...state.guided, step: next },
+      }
+    }
     default:
       return state
   }
@@ -270,6 +309,7 @@ type StoreValue = {
   simulateComplemento: (invoiceId: string) => void
   importMovements: (movements: Movement[]) => void
   reset: () => void
+  startGuidedFlow: () => void
   uploadOpen: boolean
   uploadFile: File | null
   uploadToken: number
@@ -294,6 +334,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(state))
   }, [state])
+
+  useEffect(() => {
+    if (state.guided?.phase !== 'running') return
+    const timer = window.setInterval(() => dispatch({ type: 'guided-tick' }), 220)
+    return () => window.clearInterval(timer)
+  }, [state.guided?.phase])
 
   const api = useMemo<StoreValue>(() => {
     const openUpload = (file?: File) => {
@@ -375,6 +421,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         epoch.current += 1
         localStorage.removeItem(KEY)
         dispatch({ type: 'reset' })
+      },
+      startGuidedFlow: () => {
+        if (state.guided?.phase === 'chat' || state.guided?.phase === 'running') return
+        const token = epoch.current
+        const order = guidedOrder(state.invoices, state.applications)
+        dispatch({ type: 'guided-arm', order })
+        dispatch({
+          type: 'add-message',
+          message: { id: uid('msg'), role: 'user', kind: 'text', text: 'Subí el estado de cuenta de la bodega.' },
+        })
+        window.setTimeout(() => {
+          if (epoch.current !== token) return
+          dispatch({
+            type: 'add-message',
+            message: { id: uid('msg'), role: 'assistant', kind: 'text', text: 'Empieza la conciliación.' },
+          })
+        }, 700)
+        window.setTimeout(() => {
+          if (epoch.current !== token) return
+          dispatch({ type: 'guided-run' })
+        }, 1500)
       },
       uploadOpen,
       uploadFile,

@@ -2,7 +2,10 @@ import { CUSTOMERS, PUE_FORMAS, SUPPLIERS } from './catalog'
 import {
   attentionItems,
   findParty,
+  guidedOrder,
   invoiceFlow,
+  invoicesWithoutRelation,
+  movementsWithoutRelation,
   invoiceReconciliation,
   isChoiceCase,
   paymentStatus,
@@ -582,6 +585,16 @@ function assertSeed(data: SeedData) {
   )
   if (!paidTransfer || !invoiceFlow(paidTransfer, data.applications).complete) throw new Error('Paid PUE transfer should be complete')
   if (paidTransfer.complemento !== 'no_aplica') throw new Error('PUE transfer should not require a complemento')
+  const order = guidedOrder(data.invoices, data.applications)
+  if (order.includes('inv-a184') || order.includes('inv-a191') || order.includes('inv-t088') || order.includes('inv-t091')) {
+    throw new Error('The manual choice invoices were auto-matched')
+  }
+  const looseInvoices = invoicesWithoutRelation(data.invoices, data.applications)
+  const looseMovements = movementsWithoutRelation(data.movements, data.applications)
+  if (!looseInvoices.some((item) => item.id === 'inv-a184') || !looseMovements.some((item) => item.id === 'mov-empaques')) {
+    throw new Error('Empaques should stay available for manual matching')
+  }
+  if (looseInvoices.length < 3 || looseMovements.length < 3) throw new Error('The guided demo needs several unmatched rows')
 }
 
 export const SEED = build()

@@ -585,28 +585,62 @@ export function bankTotals(movements: Movement[], accountId: string): { ingresos
   }
 }
 
-export type FlowStep = { key: 'factura' | 'pago' | 'complemento'; text: string; review: boolean }
+export type FlowStep = { key: 'factura' | 'pago' | 'complemento'; text: string; review: boolean; done: boolean }
 
 export function invoiceFlow(invoice: Invoice, applications: Application[]): { complete: boolean; steps: FlowStep[] } {
   const pago = paymentStatus(invoice, applications)
   const transferPue = invoice.metodo === 'PUE' && invoice.formaPago === '03'
   const complementoNoAplica = invoice.complemento === 'no_aplica' || transferPue
-  const pagoText =
-    pago === 'pagada' ? 'Pago en banco · Pagado' : pago === 'parcial' ? 'Pago en banco · Parcial' : 'Pago en banco · Sin pago'
-  const complementoText = complementoNoAplica
-    ? 'Complemento · No aplica'
-    : invoice.complemento === 'recibido'
-      ? 'Complemento · Recibido'
-      : 'Complemento · Pendiente'
-  const review = invoice.vigencia === 'vigente' && !complementoNoAplica && invoice.complemento === 'pendiente' && pago === 'pagada'
-  const complete =
-    invoice.vigencia === 'vigente' && pago === 'pagada' && (complementoNoAplica || invoice.complemento === 'recibido')
+  const complementoDone = complementoNoAplica || invoice.complemento === 'recibido'
+  const pagoText = pago === 'pagada' ? 'Pagado' : pago === 'parcial' ? 'Parcial' : 'Sin pago'
+  const complementoText = complementoNoAplica ? 'No aplica' : invoice.complemento === 'recibido' ? 'Recibido' : 'Pendiente'
+  const review = invoice.vigencia === 'vigente' && !complementoDone && invoice.complemento === 'pendiente' && pago === 'pagada'
+  const facturaDone = invoice.vigencia === 'vigente'
+  const pagoDone = pago === 'pagada'
+  const complete = facturaDone && pagoDone && complementoDone
   return {
     complete,
     steps: [
-      { key: 'factura', text: invoice.vigencia === 'cancelado' ? 'Factura · Cancelada' : 'Factura · Lista', review: false },
-      { key: 'pago', text: pagoText, review: false },
-      { key: 'complemento', text: complementoText, review },
+      { key: 'factura', text: facturaDone ? 'Lista' : 'Cancelada', review: false, done: facturaDone },
+      { key: 'pago', text: pagoText, review: false, done: pagoDone },
+      { key: 'complemento', text: complementoText, review, done: complementoDone },
     ],
+  }
+}
+
+export function guidedOrder(invoices: Invoice[], applications: Application[]): string[] {
+  return invoices
+    .filter((invoice) => invoice.vigencia === 'vigente' && applications.some((item) => item.invoiceId === invoice.id))
+    .sort((a, b) => {
+      if (a.direction !== b.direction) return a.direction === 'recibida' ? -1 : 1
+      return b.issueDate.localeCompare(a.issueDate) || a.folio.localeCompare(b.folio, 'es-MX')
+    })
+    .map((invoice) => invoice.id)
+}
+
+export function invoicesWithoutRelation(invoices: Invoice[], applications: Application[]): Invoice[] {
+  return invoices
+    .filter((invoice) => invoice.vigencia === 'vigente' && !applications.some((item) => item.invoiceId === invoice.id))
+    .sort((a, b) => b.issueDate.localeCompare(a.issueDate) || a.folio.localeCompare(b.folio, 'es-MX'))
+}
+
+export function movementsWithoutRelation(movements: Movement[], applications: Application[]): Movement[] {
+  return movements
+    .filter((movement) => movement.reconciliation !== 'no_requiere' && !applications.some((item) => item.movementId === movement.id))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id))
+}
+
+export function visibleFlow(
+  invoice: Invoice,
+  applications: Application[],
+  guided: { phase: 'chat' | 'running' | 'done'; order: string[]; step: number } | null,
+): { complete: boolean; steps: FlowStep[] } {
+  const flow = invoiceFlow(invoice, applications)
+  if (guided?.phase !== 'running') return flow
+  const index = guided.order.indexOf(invoice.id)
+  if (index !== -1 && index < guided.step) return flow
+  return {
+    complete: false,
+    steps: flow.steps.map((step) => ({ ...step, done: false, review: false, text: 'En espera' })),
   }
 }
