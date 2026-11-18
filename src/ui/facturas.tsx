@@ -46,9 +46,9 @@ export function Facturas() {
   const { state, setInvoiceTab, setInvoiceFilters, openDetail, openReconcile, navigate } = useStore()
   const guided = state.guided
   const freshIds = new Set(guided?.phase === 'running' ? guided.order.slice(Math.max(0, guided.step - 8), guided.step) : [])
+  const [looseOpen, setLooseOpen] = useState(false)
   useEffect(() => {
-    if (state.guided?.phase !== 'done') return
-    document.querySelector('[data-testid="sin-relacion"]')?.scrollIntoView({ block: 'start' })
+    if (state.guided?.phase === 'done') setLooseOpen(true)
   }, [state.guided?.phase])
   if (state.detail?.type === 'invoice') return <InvoiceDetail id={state.detail.id} />
 
@@ -58,6 +58,8 @@ export function Facturas() {
   const filters = state.invoiceFilters
   const active = Boolean(filters.query || filters.from || filters.to || filters.party !== 'todas' || filters.vigencia !== 'todas' || filters.pago !== 'todas' || filters.complemento !== 'todas')
   const pending = attentionItems(state).length
+  const looseInvoices = invoicesWithoutRelation(state.invoices, state.applications)
+  const looseMovements = movementsWithoutRelation(state.movements, state.applications)
 
   return (
     <div className="page">
@@ -70,6 +72,23 @@ export function Facturas() {
           Necesita tu atención · {pending}
         </button>
       </header>
+      <button type="button" className={`loose-strip${looseOpen ? ' on' : ''}`} aria-expanded={looseOpen} onClick={() => setLooseOpen((open) => !open)}>
+        <span>Sin relación</span>
+        <span>
+          {looseInvoices.length} {looseInvoices.length === 1 ? 'factura' : 'facturas'} · {looseMovements.length}{' '}
+          {looseMovements.length === 1 ? 'movimiento' : 'movimientos'}
+        </span>
+      </button>
+      {looseOpen && (
+        <Unmatched
+          invoices={looseInvoices}
+          movements={looseMovements}
+          onInvoice={(id) => openDetail({ type: 'invoice', id })}
+          onMovement={(movement) =>
+            movement.reconciliation === 'por_revisar' ? openReconcile(movement.id) : openDetail({ type: 'movement', id: movement.id })
+          }
+        />
+      )}
       {guided?.phase === 'running' && freshIds.size > 0 && (
         <div className="fresh-panel" data-testid="recien">
           <p>Acaban de coincidir</p>
@@ -216,18 +235,6 @@ export function Facturas() {
           </table>
         </div>
       )}
-      {state.guided?.phase === 'done' && (
-        <Unmatched
-          invoices={invoicesWithoutRelation(state.invoices, state.applications)}
-          movements={movementsWithoutRelation(state.movements, state.applications)}
-          onInvoice={(id) => openDetail({ type: 'invoice', id })}
-          onMovement={(movement) =>
-            movement.reconciliation === 'por_revisar'
-              ? openReconcile(movement.id)
-              : openDetail({ type: 'movement', id: movement.id })
-          }
-        />
-      )}
     </div>
   )
 }
@@ -244,7 +251,7 @@ function Unmatched({
   onMovement: (movement: Movement) => void
 }) {
   return (
-    <section className="unmatched" data-testid="sin-relacion">
+    <section className="unmatched loose-panel" data-testid="sin-relacion">
       <h2>Sin relación</h2>
       <p className="muted">La conciliación automática no las cubrió. Revísalas a mano.</p>
       <div className="unmatched-cols">
@@ -308,7 +315,11 @@ function InvoiceDetail({ id }: { id: string }) {
   return (
     <div className="page detail">
       <button type="button" className="btn quiet" onClick={closeDetail}>
-        {state.detailBack?.detail?.type === 'movement' ? '← Volver al movimiento' : '← Volver a facturas'}
+        {state.detailBack?.detail?.type === 'movement'
+          ? '← Volver al movimiento'
+          : state.detailBack?.detail?.type === 'party'
+            ? '← Volver'
+            : '← Volver a facturas'}
       </button>
       <h1>
         {invoice.folio}

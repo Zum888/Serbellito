@@ -588,6 +588,14 @@ export function movementRfc(movement: Movement, invoices: Invoice[], application
 
 export type PartyLedger = { rfc: string; name: string; pending: number }
 
+export function partyMovements(rfc: string, movements: Movement[], invoices: Invoice[], applications: Application[]): Movement[] {
+  const invoiceIds = new Set(invoices.filter((invoice) => invoice.rfc === rfc).map((invoice) => invoice.id))
+  const linked = new Set(applications.filter((item) => invoiceIds.has(item.invoiceId)).map((item) => item.movementId))
+  return movements
+    .filter((movement) => linked.has(movement.id) || movementRfc(movement, invoices, applications) === rfc)
+    .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id))
+}
+
 export function partyLedgers(invoices: Invoice[], applications: Application[], direction: 'recibida' | 'emitida'): PartyLedger[] {
   const map = new Map<string, PartyLedger>()
   for (const invoice of invoices) {

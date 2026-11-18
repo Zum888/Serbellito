@@ -271,6 +271,9 @@ tr.click:hover { background: #fafafa; }
 .rule-form .muted { margin: 0 0 12px; max-width: 62ch; }
 .rule-grid { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
 .rule-grid .field { min-width: 180px; }
+.detail .rule-grid .field { flex: 1 1 240px; }
+.detail .rule-grid .field input,
+.detail .rule-grid .field select { width: 100%; min-width: 220px; }
 .cat-edit { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .always-rule {
   border: 0;
@@ -372,7 +375,32 @@ tr.fresh { background: #f7f6f4; }
 .status-hit.open .status-tip { display: block; }
 .detail-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin: 12px 0; }
 .detail-step { display: flex; align-items: center; gap: 6px; }
-.unmatched { margin-top: 28px; }
+.loose-strip {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+}
+.loose-strip span:last-child { color: var(--muted); font-size: 13px; }
+.loose-strip.on { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.loose-panel { margin: 0 0 16px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; padding: 2px 12px 8px; }
+.unmatched { margin-top: 0; }
+.ledger { width: 100%; }
+.ledger td { padding: 5px 0; border-bottom: 1px solid var(--line); }
+.who { display: flex; gap: 12px; align-items: baseline; min-width: 0; }
+.who strong { font-weight: 650; }
+.who span { color: var(--muted); font-size: 13px; }
+.thin-list { list-style: none; margin: 0; padding: 0; }
+.thin-list li + li { border-top: 1px solid var(--line); }
+.thin-list button { width: 100%; display: flex; justify-content: space-between; gap: 12px; text-align: left; padding: 6px 0; }
+.thin-list button span { color: var(--muted); font-size: 13px; }
 .unmatched h2 { font-size: 18px; margin-bottom: 4px; }
 .unmatched h3 { font-size: 14px; margin: 0 0 8px; }
 .unmatched-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 14px; }

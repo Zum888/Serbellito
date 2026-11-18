@@ -22,6 +22,18 @@ export type CategoryRule = {
   category: string
 }
 
+export type CustomCategory = {
+  name: string
+  side: 'gasto' | 'ingreso'
+}
+
+export type PartyProfile = {
+  rfc: string
+  razonSocial: string
+  nombreComercial: string
+  subnombre: string
+}
+
 export type Invoice = {
   id: string
   direction: Direction
@@ -73,7 +85,7 @@ export type Complemento = {
 
 export type RouteName = 'inicio' | 'bancos' | 'facturas' | 'categorias' | 'personas'
 
-export type Detail = { type: 'invoice' | 'movement'; id: string }
+export type Detail = { type: 'invoice' | 'movement' | 'party'; id: string }
 
 export type BankFilters = {
   query: string
@@ -135,6 +147,8 @@ export type AppState = {
   version: 2
   guided: GuidedFlow | null
   categoryRules: CategoryRule[]
+  customCategories: CustomCategory[]
+  partyProfiles: PartyProfile[]
   messages: ChatMessage[]
   movements: Movement[]
   invoices: Invoice[]

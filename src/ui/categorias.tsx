@@ -15,16 +15,28 @@ import { useStore } from '../store'
 import { PartyLines } from './party'
 
 export function Categorias() {
-  const { state, saveRule } = useStore()
+  const { state, saveRule, createCategory } = useStore()
   const [query, setQuery] = useState('')
   const [side, setSide] = useState<'gasto' | 'ingreso'>('gasto')
   const [rfc, setRfc] = useState(SUPPLIERS[0]?.rfc ?? '')
   const [picked, setPicked] = useState('mercancía')
   const [custom, setCustom] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newSide, setNewSide] = useState<'gasto' | 'ingreso'>('gasto')
   const parties = side === 'gasto' ? SUPPLIERS : CUSTOMERS
-  const presets = side === 'gasto' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const presets = [
+    ...new Set([
+      ...(side === 'gasto' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES),
+      ...state.customCategories.filter((item) => item.side === side).map((item) => item.name),
+      ...state.categoryRules.filter((rule) => rule.side === side).map((rule) => rule.category),
+    ]),
+  ]
   const q = norm(query)
-  const labels = categoryChoices([...state.categoryRules.map((rule) => rule.category), ...state.movements.map((movement) => movement.category)])
+  const labels = categoryChoices([
+    ...state.customCategories.map((item) => item.name),
+    ...state.categoryRules.map((rule) => rule.category),
+    ...state.movements.map((movement) => movement.category),
+  ])
   const rows = labels.flatMap((category) => {
     const rules = state.categoryRules.filter((rule) => rule.category === category)
     const named = norm(categoryLabel(category)).includes(q)
@@ -58,6 +70,38 @@ export function Categorias() {
           <p className="muted">Una regla por RFC. Los movimientos nuevos la toman solos.</p>
         </div>
       </header>
+      <form
+        className="rule-form"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const name = newName.trim()
+          if (!name) return
+          createCategory(name, newSide)
+          setNewName('')
+          if (newSide !== side) {
+            setSide(newSide)
+            setRfc((newSide === 'gasto' ? SUPPLIERS : CUSTOMERS)[0]?.rfc ?? '')
+          }
+          setPicked(name)
+        }}
+      >
+        <div className="rule-grid">
+          <label className="field">
+            <span>Nueva categoría</span>
+            <input value={newName} placeholder="pago por construcción" onChange={(event) => setNewName(event.target.value)} />
+          </label>
+          <label className="field">
+            <span>Tipo</span>
+            <select value={newSide} onChange={(event) => setNewSide(event.target.value as 'gasto' | 'ingreso')}>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+          </label>
+          <button type="submit" className="btn quiet">
+            Crear
+          </button>
+        </div>
+      </form>
       <form
         className="rule-form"
         onSubmit={(event) => {

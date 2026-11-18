@@ -12,10 +12,12 @@ import type {
   CategoryRule,
   ChatAction,
   ChatMessage,
+  CustomCategory,
   Detail,
   InvoiceFilters,
   InvoiceTab,
   Movement,
+  PartyProfile,
   RouteName,
 } from './types'
 import { pendingBalance } from './domain'
@@ -41,6 +43,21 @@ export const EMPTY_INVOICE_FILTERS: InvoiceFilters = {
   to: '',
 }
 
+function addCategory(categories: CustomCategory[], name: string, side: 'gasto' | 'ingreso'): CustomCategory[] {
+  const trimmed = name.trim()
+  if (!trimmed) return categories
+  if (categories.some((item) => item.name.localeCompare(trimmed, 'es-MX', { sensitivity: 'accent' }) === 0)) return categories
+  return [...categories, { name: trimmed, side }]
+}
+
+function cleanProfile(profile: PartyProfile): PartyProfile | null {
+  const razonSocial = profile.razonSocial.trim()
+  const nombreComercial = profile.nombreComercial.trim()
+  const subnombre = profile.subnombre.trim()
+  if (!profile.rfc || !razonSocial || !nombreComercial || !subnombre) return null
+  return { rfc: profile.rfc, razonSocial, nombreComercial, subnombre }
+}
+
 function upsertRule(rules: CategoryRule[], rule: CategoryRule): CategoryRule[] {
   const category = rule.category.trim()
   if (!rule.rfc || !category) return rules
@@ -52,6 +69,8 @@ function freshState(): AppState {
     version: 2,
     guided: null,
     categoryRules: EXAMPLE_RULES,
+    customCategories: [],
+    partyProfiles: [],
     messages: [],
     movements: SEED.movements,
     invoices: SEED.invoices,
@@ -77,17 +96,14 @@ function loadState(): AppState {
     if (parsed.version !== 2 || parsed.invoices?.length !== 100 || !Array.isArray(parsed.movements)) return freshState()
     if (parsed.invoices.some((invoice) => !invoice.usoCfdi || !invoice.formaPago)) return freshState()
     if (!Array.isArray(parsed.categoryRules)) parsed.categoryRules = EXAMPLE_RULES
-    const phase = parsed.guided?.phase as string | undefined
-    if (
-      !parsed.guided ||
-      !Array.isArray(parsed.guided.order) ||
-      typeof parsed.guided.checks !== 'number' ||
-      phase === 'chat' ||
-      phase === 'drop' ||
-      phase === 'checklist'
-    ) {
-      parsed.guided = null
-    }
+    if (!Array.isArray(parsed.customCategories)) parsed.customCategories = []
+    if (!Array.isArray(parsed.partyProfiles)) parsed.partyProfiles = []
+    parsed.messages = []
+    parsed.guided = null
+    parsed.route = 'inicio'
+    parsed.detail = null
+    parsed.detailBack = null
+    parsed.reconcileId = null
     return parsed
   } catch {
     return freshState()
@@ -112,6 +128,8 @@ type Action =
   | { type: 'open-category'; category: Category }
   | { type: 'set-category'; movementId: string; category: Category; always?: { rfc: string; side: 'gasto' | 'ingreso' } }
   | { type: 'save-rule'; rfc: string; side: 'gasto' | 'ingreso'; category: string }
+  | { type: 'create-category'; name: string; side: 'gasto' | 'ingreso' }
+  | { type: 'save-profile'; profile: PartyProfile }
   | { type: 'confirm'; movementId: string; invoiceIds: string[] }
   | { type: 'undo'; movementId: string }
   | { type: 'complemento'; invoiceId: string }
@@ -137,7 +155,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         detailBack: { route: state.route, detail: state.detail },
         detail: action.detail,
-        route: action.detail.type === 'invoice' ? 'facturas' : 'bancos',
+        route: action.detail.type === 'invoice' ? 'facturas' : action.detail.type === 'party' ? 'personas' : 'bancos',
         reconcileId: null,
       }
     case 'close-detail':
@@ -188,6 +206,13 @@ function reducer(state: AppState, action: Action): AppState {
       }
     case 'save-rule':
       return { ...state, categoryRules: upsertRule(state.categoryRules, action) }
+    case 'create-category':
+      return { ...state, customCategories: addCategory(state.customCategories, action.name, action.side) }
+    case 'save-profile': {
+      const profile = cleanProfile(action.profile)
+      if (!profile) return state
+      return { ...state, partyProfiles: [...state.partyProfiles.filter((item) => item.rfc !== profile.rfc), profile] }
+    }
     case 'confirm': {
       const movement = state.movements.find((item) => item.id === action.movementId)
       if (!movement || movement.reconciliation === 'confirmada') return state
@@ -329,6 +354,8 @@ type StoreValue = {
   toggleAttention: () => void
   setCategory: (movementId: string, category: Category, always?: { rfc: string; side: 'gasto' | 'ingreso' }) => void
   saveRule: (rule: { rfc: string; side: 'gasto' | 'ingreso'; category: string }) => void
+  createCategory: (name: string, side: 'gasto' | 'ingreso') => void
+  saveProfile: (profile: PartyProfile) => void
   openParty: (direction: 'recibida' | 'emitida', name: string) => void
   confirmReconcile: (movementId: string, invoiceIds: string[]) => void
   undoReconcile: (movementId: string) => void
@@ -442,6 +469,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleAttention: () => dispatch({ type: 'toggle-attention' }),
       setCategory: (movementId, category, always) => dispatch({ type: 'set-category', movementId, category, always }),
       saveRule: (rule) => dispatch({ type: 'save-rule', ...rule }),
+      createCategory: (name, side) => dispatch({ type: 'create-category', name, side }),
+      saveProfile: (profile) => dispatch({ type: 'save-profile', profile }),
       openParty: (direction, name) => dispatch({ type: 'party', direction, name }),
       confirmReconcile: (movementId, invoiceIds) => dispatch({ type: 'confirm', movementId, invoiceIds }),
       undoReconcile: (movementId) => dispatch({ type: 'undo', movementId }),

@@ -230,9 +230,11 @@ function MovementDetail({ id }: { id: string }) {
       <button type="button" className="btn quiet" onClick={closeDetail}>
         {state.detailBack?.detail?.type === 'invoice'
           ? '← Volver a la factura'
-          : state.detailBack?.detail
-            ? '← Volver al movimiento anterior'
-            : '← Volver a bancos'}
+          : state.detailBack?.detail?.type === 'party'
+            ? '← Volver'
+            : state.detailBack?.detail
+              ? '← Volver al movimiento anterior'
+              : '← Volver a bancos'}
       </button>
       <h1>{movement.cargo > 0 ? 'Cargo' : 'Abono'} {money(movement.cargo || movement.abono)}</h1>
       <div className="sentences">
