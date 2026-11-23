@@ -9,6 +9,7 @@ import { IconBank, IconCategories, IconFile, IconHome, IconMenu, IconPanel, Icon
 import { Personas } from './ui/personas'
 import { AttentionList, AttentionRail, Inicio, ReconcilePanel } from './ui/inicio'
 import { MatchPanel } from './ui/match'
+import { Onboarding } from './ui/onboarding'
 import { UploadDialog } from './ui/upload'
 import type { AttentionItem } from './types'
 
@@ -44,6 +45,8 @@ export function App() {
     setMenu(false)
     navigate(route)
   }
+
+  if (state.onboarding.step !== 'done') return <Onboarding />
 
   return (
     <div className={`shell${state.reconcileId ? ' reconciling' : ''}${matching ? ' matching' : ''}${state.sidebarCollapsed ? ' is-collapsed' : ''}`}>
@@ -133,7 +136,7 @@ export function App() {
         <div className="modal-back" onClick={() => setConfirmReset(false)}>
           <div className="modal" role="dialog" aria-labelledby="reset-title" onClick={(event) => event.stopPropagation()}>
             <h2 id="reset-title">¿Reiniciar la demostración?</h2>
-            <p>Se borra la conversación y vuelven los datos de ejemplo.</p>
+            <p>Se borra lo que cambiaste, incluida la puerta de entrada, y vuelven los datos de ejemplo.</p>
             <div className="modal-actions">
               <button type="button" className="btn quiet" onClick={() => setConfirmReset(false)}>
                 Cancelar

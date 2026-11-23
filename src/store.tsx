@@ -17,12 +17,45 @@ import type {
   InvoiceFilters,
   InvoiceTab,
   Movement,
+  OnboardingProfile,
+  OnboardingState,
   PartyProfile,
   RouteName,
 } from './types'
 import { pendingBalance } from './domain'
 
 const KEY = 'serbellito.demo.v2'
+
+export const EMPTY_PROFILE: OnboardingProfile = {
+  name: '',
+  email: '',
+  phone: '',
+  rfc: '',
+  razon: '',
+  comercial: '',
+  tipo: '',
+  web: '',
+  companyEmail: '',
+  companyPhone: '',
+}
+
+export function freshOnboarding(): OnboardingState {
+  return { step: 'gate', sat: 'pending', bank: 'pending', bankFile: '', bankAdded: 0, profile: { ...EMPTY_PROFILE } }
+}
+
+function normalizeOnboarding(value: OnboardingState | undefined): OnboardingState {
+  const base = freshOnboarding()
+  if (!value || typeof value !== 'object') return base
+  const steps = ['gate', 'account', 'company', 'sat', 'bank', 'summary', 'done']
+  return {
+    step: steps.includes(value.step) ? value.step : 'gate',
+    sat: value.sat === 'connected' || value.sat === 'skipped' ? value.sat : 'pending',
+    bank: value.bank === 'example' || value.bank === 'file' || value.bank === 'skipped' ? value.bank : 'pending',
+    bankFile: typeof value.bankFile === 'string' ? value.bankFile : '',
+    bankAdded: typeof value.bankAdded === 'number' ? value.bankAdded : 0,
+    profile: { ...EMPTY_PROFILE, ...(value.profile ?? {}) },
+  }
+}
 
 export const EMPTY_BANK_FILTERS: BankFilters = {
   query: '',
@@ -106,6 +139,7 @@ function upsertRule(rules: CategoryRule[], rule: CategoryRule): CategoryRule[] {
 function freshState(): AppState {
   return {
     version: 2,
+    onboarding: freshOnboarding(),
     guided: null,
     categoryRules: EXAMPLE_RULES,
     customCategories: [],
@@ -139,6 +173,7 @@ function loadState(): AppState {
     if (!Array.isArray(parsed.customCategories)) parsed.customCategories = []
     if (!Array.isArray(parsed.hiddenCategories)) parsed.hiddenCategories = []
     if (!Array.isArray(parsed.partyProfiles)) parsed.partyProfiles = []
+    parsed.onboarding = normalizeOnboarding(parsed.onboarding)
     parsed.messages = []
     parsed.guided = null
     parsed.route = 'inicio'
@@ -182,6 +217,7 @@ type Action =
   | { type: 'party'; direction: 'recibida' | 'emitida'; name: string }
   | { type: 'guided-arm'; order: string[] }
   | { type: 'guided-advance' }
+  | { type: 'onboarding'; patch: Partial<Omit<OnboardingState, 'profile'>> & { profile?: Partial<OnboardingProfile> } }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -356,6 +392,23 @@ function reducer(state: AppState, action: Action): AppState {
         invoiceTab: action.direction === 'recibida' ? 'recibidas' : 'emitidas',
         invoiceFilters: { ...EMPTY_INVOICE_FILTERS, party: action.name },
       }
+    case 'onboarding': {
+      const next = {
+        ...state.onboarding,
+        ...action.patch,
+        profile: { ...state.onboarding.profile, ...action.patch.profile },
+      }
+      const entering = next.step === 'done' && state.onboarding.step !== 'done'
+      return {
+        ...state,
+        onboarding: next,
+        route: entering ? 'inicio' : state.route,
+        detail: entering ? null : state.detail,
+        detailBack: entering ? null : state.detailBack,
+        reconcileId: entering ? null : state.reconcileId,
+        guided: entering ? null : state.guided,
+      }
+    }
     case 'guided-arm':
       return {
         ...state,
@@ -429,6 +482,7 @@ type StoreValue = {
   importMovements: (movements: Movement[]) => void
   reset: () => void
   newChat: () => void
+  patchOnboarding: (patch: Partial<Omit<OnboardingState, 'profile'>> & { profile?: Partial<OnboardingProfile> }) => void
   startGuidedFlow: () => void
   uploadOpen: boolean
   uploadFile: File | null
@@ -555,6 +609,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         epoch.current += 1
         dispatch({ type: 'clear-chat' })
       },
+      patchOnboarding: (patch) => dispatch({ type: 'onboarding', patch }),
       startGuidedFlow: () => {
         const phase = state.guided?.phase
         if (phase === 'drop' || phase === 'checklist' || phase === 'running') return

@@ -144,8 +144,33 @@ export type GuidedFlow = {
   step: number
 }
 
+export type OnboardingStep = 'gate' | 'account' | 'company' | 'sat' | 'bank' | 'summary' | 'done'
+
+export type OnboardingProfile = {
+  name: string
+  email: string
+  phone: string
+  rfc: string
+  razon: string
+  comercial: string
+  tipo: '' | 'fisica' | 'moral'
+  web: string
+  companyEmail: string
+  companyPhone: string
+}
+
+export type OnboardingState = {
+  step: OnboardingStep
+  sat: 'pending' | 'connected' | 'skipped'
+  bank: 'pending' | 'example' | 'file' | 'skipped'
+  bankFile: string
+  bankAdded: number
+  profile: OnboardingProfile
+}
+
 export type AppState = {
   version: 2
+  onboarding: OnboardingState
   guided: GuidedFlow | null
   categoryRules: CategoryRule[]
   customCategories: CustomCategory[]
