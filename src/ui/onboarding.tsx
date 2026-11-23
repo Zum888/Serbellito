@@ -63,96 +63,24 @@ export function Onboarding() {
   const { state } = useStore()
   const stored = state.onboarding.step
   const step: Stage = onboardingQuery() || stored === 'done' ? 'gate' : stored
+  if (step === 'gate' || step === 'account') return <Account />
   return (
-    <div className="board">
-      <Showcase />
-      <section className="board-panel">
-        {step !== 'gate' && <Stepper step={step} />}
-        <div className="board-body">
-          {step === 'gate' && <Gate />}
-          {step === 'account' && <Account />}
-          {step === 'company' && <Company />}
-          {step === 'sat' && <Sat />}
-          {step === 'bank' && <Bank />}
-          {step === 'summary' && <Summary />}
-        </div>
-      </section>
+    <div className="column">
+      <div className="column-sheet">
+        <p className="wordmark">Serbell</p>
+        <Stepper step={step} />
+        {step === 'company' && <Company />}
+        {step === 'sat' && <Sat />}
+        {step === 'bank' && <Bank />}
+        {step === 'summary' && <Summary />}
+      </div>
     </div>
   )
 }
 
-function Showcase() {
-  const { state } = useStore()
-  const invoices = state.invoices.length
-  const received = state.invoices.filter((invoice) => invoice.direction === 'recibida').length
-  const issued = invoices - received
-  const reconciled = state.movements.filter((movement) => movement.reconciliation === 'confirmada').length
-  return (
-    <aside className="board-side">
-      <p className="board-brand">Serbell</p>
-      <h2>Tu CFO con IA, desde el primer día.</h2>
-      <p>Serbellito deja lista la mesa de Distribuidora La Central. Llegas desde serbell.com. La demostración vive en este navegador.</p>
-      <ul className="board-benefits">
-        <li>
-          <BenefitIcon kind="match" />
-          <span>Conciliar movimientos con la factura del mismo monto.</span>
-        </li>
-        <li>
-          <BenefitIcon kind="folder" />
-          <span>Organizar gastos por proveedor, RFC y categoría.</span>
-        </li>
-        <li>
-          <BenefitIcon kind="eye" />
-          <span>Visibilidad de lo que sigue: cobros, complementos y pagos abiertos.</span>
-        </li>
-      </ul>
-      <div className="orbit">
-        <div className="infinity" aria-hidden="true">
-          <svg viewBox="0 0 86 42">
-            <path d="M24 21c0-7.4 5.4-13 13.2-13 8.6 0 12.2 8.2 18.8 13 6.4 4.6 10.6 13 19 13 7.6 0 13-5.6 13-13S82.6 8 75 8c-8.4 0-12.6 8.4-19 13-6.6 4.8-10.2 13-18.8 13C29.4 34 24 28.4 24 21Z" />
-          </svg>
-        </div>
-        <article className="float a">
-          <strong>Comprobantes registrados</strong>
-          <span>
-            {invoices} facturas · {received} recibidas · {issued} emitidas
-          </span>
-        </article>
-        <article className="float b">
-          <strong>Movimientos conciliados</strong>
-          <span>{reconciled} ligados a un CFDI</span>
-        </article>
-        <article className="float c">
-          <strong>Recordatorio de cobro</strong>
-          <span>Empaques de Occidente · $18,560</span>
-        </article>
-        <article className="float d">
-          <strong>Reporte mensual</strong>
-          <span>Noviembre 2026 · pesos MXN</span>
-        </article>
-      </div>
-    </aside>
-  )
-}
-
-function BenefitIcon({ kind }: { kind: 'match' | 'folder' | 'eye' }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      {kind === 'match' && <path d="M4 12h6M14 12h6M12 7v10M8 8l4 4-4 4M16 8l-4 4 4 4" />}
-      {kind === 'folder' && <path d="M3 7h6l2 2h10v9H3z" />}
-      {kind === 'eye' && (
-        <>
-          <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z" />
-          <circle cx="12" cy="12" r="2.5" />
-        </>
-      )}
-    </svg>
-  )
-}
-
 function Stepper({ step }: { step: Stage }) {
-  const current = step === 'account' ? 0 : step === 'company' ? 1 : step === 'summary' ? 3 : 2
-  const labels = ['Cuenta', 'Empresa', 'Conexión', 'Listo']
+  const current = step === 'gate' || step === 'account' ? 0 : step === 'company' ? 1 : step === 'sat' ? 2 : step === 'bank' ? 3 : 4
+  const labels = ['Cuenta', 'Tu empresa', 'SAT', 'Bancos', 'Listo']
   return (
     <ol className="stepper" aria-label="Progreso">
       {labels.map((label, index) => (
@@ -186,39 +114,6 @@ function Panel({ title, lede, skip, children }: { title: string; lede?: string; 
   )
 }
 
-function Gate() {
-  const { patchOnboarding } = useStore()
-  return (
-    <Panel title="Entra a Serbellito" lede="La mesa de trabajo de Distribuidora La Central, en Guadalajara.">
-      <p className="board-from">Llegas desde serbell.com</p>
-      <div className="gate-actions">
-        <button
-          type="button"
-          className="btn primary"
-          data-testid="gate-login"
-          onClick={() => {
-            clearOnboardingQuery()
-            patchOnboarding({ step: 'done' })
-          }}
-        >
-          Iniciar sesión
-        </button>
-        <button
-          type="button"
-          className="btn"
-          data-testid="gate-register"
-          onClick={() => {
-            clearOnboardingQuery()
-            patchOnboarding({ step: 'account' })
-          }}
-        >
-          Registrarte
-        </button>
-      </div>
-    </Panel>
-  )
-}
-
 function Account() {
   const { state, patchOnboarding } = useStore()
   const saved = state.onboarding.profile
@@ -229,28 +124,53 @@ function Account() {
   const type = useTyper()
 
   function continueAccount() {
+    clearOnboardingQuery()
     patchOnboarding({ step: 'company', profile: { name: name.trim(), email: email.trim(), phone: phone.trim() } })
   }
 
   return (
-    <Panel title="Crea tu cuenta en Serbell" lede="La pedimos una sola vez. La contraseña se queda en esta pantalla.">
-      <FillButton
-        onClick={() =>
-          type([
-            { write: setName, value: OSCAR.name },
-            { write: setEmail, value: OSCAR.email },
-            { write: setPhone, value: OSCAR.phone },
-            { write: setPassword, value: OSCAR.password },
-          ])
-        }
-      />
-      <form
-        className="gate-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          continueAccount()
-        }}
-      >
+    <div className="split">
+      <aside className="split-side">
+        <p className="wordmark">Serbell</p>
+        <h2>La mesa donde cuadran facturas y banco.</h2>
+        <p>Serbellito ordena los CFDIs, los movimientos y el siguiente paso. En pesos mexicanos, en este navegador.</p>
+        <ul className="benefits">
+          <li>
+            <span>01</span>
+            Conciliar cada movimiento con el CFDI del mismo monto.
+          </li>
+          <li>
+            <span>02</span>
+            Organizar los gastos por proveedor, RFC y categoría.
+          </li>
+          <li>
+            <span>03</span>
+            Ver qué sigue: un cobro, un complemento o un pago abierto.
+          </li>
+        </ul>
+        <p className="split-from">Llegas desde serbell.com</p>
+      </aside>
+      <section className="split-form">
+        <Stepper step="account" />
+        <h1>Crea tu cuenta</h1>
+        <p className="lede">Nombre, correo, celular y contraseña. La contraseña se queda en esta pantalla.</p>
+        <FillButton
+          onClick={() =>
+            type([
+              { write: setName, value: OSCAR.name },
+              { write: setEmail, value: OSCAR.email },
+              { write: setPhone, value: OSCAR.phone },
+              { write: setPassword, value: OSCAR.password },
+            ])
+          }
+        />
+        <form
+          className="pill-form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            continueAccount()
+          }}
+        >
         <label className="field">
           Nombre
           <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
@@ -271,7 +191,19 @@ function Account() {
           Continuar
         </button>
       </form>
-    </Panel>
+        <button
+          type="button"
+          className="text-login"
+          data-testid="gate-login"
+          onClick={() => {
+            clearOnboardingQuery()
+            patchOnboarding({ step: 'done' })
+          }}
+        >
+          Iniciar sesión
+        </button>
+      </section>
+    </div>
   )
 }
 
@@ -315,10 +247,18 @@ function Company() {
   }
 
   return (
-    <Panel title="Tu empresa" lede="Puedes continuar con lo que esté lleno.">
+    <Panel
+      title="Tu empresa"
+      lede="Puedes continuar con lo que esté lleno."
+      skip={
+        <button type="button" className="btn quiet" data-testid="skip-company" onClick={() => patchOnboarding({ step: 'sat' })}>
+          Lo agrego después
+        </button>
+      }
+    >
       <FillButton onClick={fillCompany} />
       <form
-        className="gate-form"
+        className="pill-form"
         onSubmit={(event) => {
           event.preventDefault()
           continueCompany()
@@ -376,8 +316,7 @@ function Sat() {
   const issued = state.invoices.filter((invoice) => invoice.direction === 'emitida').length
   const lines = [
     'Consultando al SAT · simulación',
-    `Descargando facturas recibidas · ${received}`,
-    `Descargando facturas emitidas · ${issued}`,
+    `Descargando 100 CFDIs: ${received} recibidas y ${issued} emitidas`,
     'Verificando vigencias y complementos',
     'Un pago de Empaques de Occidente por $18,560 puede cubrir A-184 y A-191.',
     'Falta el complemento de A-191.',
@@ -415,7 +354,7 @@ function Sat() {
     >
       {!running ? (
         <form
-          className="gate-form"
+          className="pill-form"
           onSubmit={(event) => {
             event.preventDefault()
             start()
