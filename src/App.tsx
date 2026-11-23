@@ -9,7 +9,7 @@ import { IconBank, IconCategories, IconFile, IconHome, IconMenu, IconPanel, Icon
 import { Personas } from './ui/personas'
 import { AttentionList, AttentionRail, Inicio, ReconcilePanel } from './ui/inicio'
 import { MatchPanel } from './ui/match'
-import { Onboarding } from './ui/onboarding'
+import { Onboarding, onboardingQuery } from './ui/onboarding'
 import { UploadDialog } from './ui/upload'
 import type { AttentionItem } from './types'
 
@@ -46,7 +46,7 @@ export function App() {
     navigate(route)
   }
 
-  if (state.onboarding.step !== 'done') return <Onboarding />
+  if (onboardingQuery() || state.onboarding.step !== 'done') return <Onboarding />
 
   return (
     <div className={`shell${state.reconcileId ? ' reconciling' : ''}${matching ? ' matching' : ''}${state.sidebarCollapsed ? ' is-collapsed' : ''}`}>

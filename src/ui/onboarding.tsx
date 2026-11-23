@@ -15,9 +15,13 @@ const DEMO_COMPANY = {
   companyPhone: '33 3614 2200',
 }
 
+export function onboardingQuery(): boolean {
+  return new URLSearchParams(window.location.search).get('onboarding') === '1'
+}
+
 export function Onboarding() {
   const { state } = useStore()
-  const step = state.onboarding.step
+  const step = onboardingQuery() ? 'gate' : state.onboarding.step
   return (
     <div className="gate">
       <div className="gate-card">
