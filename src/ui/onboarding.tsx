@@ -78,6 +78,20 @@ export function Onboarding() {
   )
 }
 
+function DoorStepper() {
+  const labels = ['Cuenta', 'Empresa', 'Conexión', 'Listo']
+  return (
+    <ol className="stepper door" aria-label="Progreso">
+      {labels.map((label, index) => (
+        <li key={label} className={index === 0 ? 'on' : ''}>
+          <i />
+          {label}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function Stepper({ step }: { step: Stage }) {
   const current = step === 'gate' || step === 'account' ? 0 : step === 'company' ? 1 : step === 'sat' ? 2 : step === 'bank' ? 3 : 4
   const labels = ['Cuenta', 'Tu empresa', 'SAT', 'Bancos', 'Listo']
@@ -143,6 +157,38 @@ function Panel({ title, lede, skip, children }: { title: string; lede?: string; 
   )
 }
 
+function BenefitIcon({ kind }: { kind: 'match' | 'folder' | 'next' }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {kind === 'match' && <path d="M4 8h11M12 4l4 4-4 4M20 16H9M12 12l-4 4 4 4" />}
+      {kind === 'folder' && <path d="M3 7h6l2 2h10v9H3z" />}
+      {kind === 'next' && <path d="M5 12h14M13 6l6 6-6 6" />}
+    </svg>
+  )
+}
+
+function GoogleMark() {
+  return (
+    <svg className="logo" viewBox="0 0 18 18" aria-hidden="true">
+      <path className="g1" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z" />
+      <path className="g2" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.6-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3C2.4 16.1 5.5 18 9 18z" />
+      <path className="g3" d="M3.9 10.7A5.4 5.4 0 0 1 3.6 9c0-.6.1-1.2.3-1.7V5H.9A9 9 0 0 0 0 9c0 1.4.3 2.8.9 4l3-2.3z" />
+      <path className="g4" d="M9 3.6c1.3 0 2.5.5 3.4 1.3L15 2.3C13.4.9 11.4 0 9 0 5.5 0 2.4 1.9.9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z" />
+    </svg>
+  )
+}
+
+function MicrosoftMark() {
+  return (
+    <svg className="logo" viewBox="0 0 18 18" aria-hidden="true">
+      <rect className="m1" x="0" y="0" width="8" height="8" />
+      <rect className="m2" x="10" y="0" width="8" height="8" />
+      <rect className="m3" x="0" y="10" width="8" height="8" />
+      <rect className="m4" x="10" y="10" width="8" height="8" />
+    </svg>
+  )
+}
+
 function Account() {
   const { state, patchOnboarding } = useStore()
   const saved = state.onboarding.profile
@@ -166,27 +212,30 @@ function Account() {
     <div className="split">
       <aside className="split-side">
         <div className="split-copy">
-          <p className="wordmark">Serbell</p>
-          <h2>Tu CFO con IA, desde el primer día.</h2>
-          <p>Serbellito deja lista la mesa de Distribuidora La Central. Llegas desde serbell.com. Pesos mexicanos, en este navegador.</p>
+          <h2>
+            Tu CFO con IA,
+            <span>desde el primer día.</span>
+          </h2>
+          <p>Serbellito junta facturas, banco y el siguiente paso. Llegas desde serbell.com.</p>
           <ul className="benefits">
             <li>
-              <span>01</span>
-              Conciliar cada movimiento con el CFDI del mismo monto.
+              <BenefitIcon kind="match" />
+              Conciliar movimientos con el CFDI del mismo monto.
             </li>
             <li>
-              <span>02</span>
-              Organizar los gastos por proveedor, RFC y categoría.
+              <BenefitIcon kind="folder" />
+              Organizar gastos por proveedor y categoría.
             </li>
             <li>
-              <span>03</span>
-              Ver qué sigue: un cobro, un complemento o un pago abierto.
+              <BenefitIcon kind="next" />
+              Ver cobros, complementos y lo que sigue.
             </li>
           </ul>
         </div>
-        <div className="floats">
+        <div className="stage">
+          <div className="brand-piece">Serbell</div>
           <article className="float a">
-            <strong>Comprobantes registrados</strong>
+            <strong>Comprobantes</strong>
             <span>
               {invoices} facturas · {received} recibidas · {issued} emitidas
             </span>
@@ -196,56 +245,72 @@ function Account() {
             <span>{reconciled} ligados a un CFDI</span>
           </article>
           <article className="float c">
-            <strong>Recordatorio de cobro</strong>
+            <strong>Un cobro</strong>
             <span>Empaques de Occidente · $18,560</span>
           </article>
           <article className="float d">
-            <strong>Reporte mensual</strong>
+            <strong>Reporte</strong>
             <span>Noviembre 2026 · pesos MXN</span>
           </article>
         </div>
       </aside>
       <section className="split-form">
-        <Stepper step="account" />
+        <DoorStepper />
         <h1>Crea tu cuenta en Serbell</h1>
-        <p className="lede">El correo abre la cuenta. La contraseña se queda en esta pantalla.</p>
-        <FillButton
-          onClick={() =>
-            type([
-              { write: setEmail, value: OSCAR.email },
-              { write: setName, value: OSCAR.name },
-              { write: setPhone, value: OSCAR.phone },
-              { write: setPassword, value: OSCAR.password },
-            ])
-          }
-        />
         <form
-          className="pill-form"
+          className="door-form"
           onSubmit={(event) => {
             event.preventDefault()
             continueAccount()
           }}
         >
-        <label className="field">
-          Correo
-          <input type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
-        </label>
-        <label className="field">
-          Nombre
-          <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
-        </label>
-        <label className="field">
-          Celular
-          <input value={phone} inputMode="tel" autoComplete="tel" onChange={(event) => setPhone(event.target.value)} />
-        </label>
-        <label className="field">
-          Contraseña
-          <input type="password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
-        </label>
-        <button type="submit" className="btn primary" data-testid="account-next">
-          Continuar
-        </button>
-      </form>
+          <button type="button" className="social">
+            <GoogleMark />
+            Continuar con Google
+          </button>
+          <button type="button" className="social">
+            <MicrosoftMark />
+            Continuar con Microsoft
+          </button>
+          <div className="or">o</div>
+          <label className="field mail">
+            Correo electrónico
+            <span className="mail-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="M3 7l9 7 9-7" />
+              </svg>
+              <input type="email" value={email} autoComplete="email" placeholder="correo@empresa.mx" onChange={(event) => setEmail(event.target.value)} />
+            </span>
+          </label>
+          <button type="submit" className="btn primary" data-testid="account-next">
+            Continuar
+          </button>
+          <div className="account-rest">
+            <label className="field">
+              Nombre
+              <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
+            </label>
+            <label className="field">
+              Celular
+              <input value={phone} inputMode="tel" autoComplete="tel" onChange={(event) => setPhone(event.target.value)} />
+            </label>
+            <label className="field">
+              Contraseña
+              <input type="password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
+            </label>
+            <FillButton
+              onClick={() =>
+                type([
+                  { write: setEmail, value: OSCAR.email },
+                  { write: setName, value: OSCAR.name },
+                  { write: setPhone, value: OSCAR.phone },
+                  { write: setPassword, value: OSCAR.password },
+                ])
+              }
+            />
+          </div>
+        </form>
         <button
           type="button"
           className="text-login"

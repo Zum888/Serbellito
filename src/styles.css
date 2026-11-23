@@ -582,60 +582,108 @@ tr.fresh { background: #f7f6f4; }
 .split { min-height: 100vh; display: grid; grid-template-columns: minmax(440px, 1.08fr) minmax(400px, 0.92fr); }
 .split-side {
   min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto minmax(280px, 1fr);
-  gap: 28px;
-  padding: 48px 52px 36px;
-  color: #f7f5f2;
+  display: flex;
+  flex-direction: column;
+  padding: 48px 56px 28px;
+  color: #16324d;
   background:
-    radial-gradient(circle at 12% 8%, #6d94b4 0, transparent 26%),
-    radial-gradient(circle at 92% 88%, #173044 0, transparent 34%),
-    linear-gradient(165deg, #3d6886 0%, #2c4e66 52%, #243f54 100%);
+    radial-gradient(circle at 18% 12%, #ffffff 0, transparent 28%),
+    linear-gradient(180deg, #e8f3fc 0%, #d4e7f8 100%);
 }
-.split-side .wordmark { font-family: var(--serif); font-size: 26px; }
 .split-side h2 {
-  max-width: 14ch;
-  margin: 22px 0 14px;
+  max-width: 12ch;
+  margin: 0 0 12px;
   font-family: var(--serif);
   font-size: 52px;
   font-weight: 560;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  color: #16324d;
 }
-.split-copy > p { max-width: 38ch; font-size: 18px; color: rgba(247, 245, 242, 0.84); }
-.benefits { list-style: none; max-width: 40ch; margin: 26px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-.benefits li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
-.benefits span { padding-top: 2px; color: rgba(247, 245, 242, 0.55); font-size: 13px; }
-.floats { position: relative; height: 320px; }
+.split-side h2 span { display: block; color: #1657a8; }
+.split-copy > p { max-width: 38ch; font-size: 17px; color: #3d5870; }
+.benefits { list-style: none; max-width: 42ch; margin: 22px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.benefits li { display: flex; align-items: center; gap: 12px; }
+.benefits svg { width: 22px; height: 22px; flex: none; stroke: #1657a8; }
+.stage { position: relative; width: min(640px, 100%); height: 400px; margin: 28px auto 0; }
+.brand-piece {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 168px;
+  height: 168px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 28px;
+  background: #1657a8;
+  color: #fff;
+  font-family: var(--serif);
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  box-shadow: 0 18px 40px rgba(22, 87, 168, 0.28);
+}
 .float {
   position: absolute;
-  width: 236px;
-  padding: 14px 16px;
+  width: 210px;
+  padding: 12px 14px;
   border-radius: 16px;
-  box-shadow: 0 16px 34px rgba(16, 32, 48, 0.2);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(22, 60, 96, 0.12);
 }
 .float strong, .float span { display: block; }
-.float span { margin-top: 4px; font-size: 13px; }
-.float.a { left: 0; top: 8px; background: #e7f6ee; color: #1d3b32; }
-.float.b { right: 8px; top: 36px; background: #e6e8fb; color: #243056; }
-.float.c { left: 28px; top: 148px; background: #f8efd8; color: #3d3420; }
-.float.d { right: 0; top: 176px; background: #f8e6e4; color: #3d2422; }
+.float span { margin-top: 3px; color: #3d5870; font-size: 13px; }
+.float.a { left: 0; top: 28px; }
+.float.b { right: 0; top: 64px; }
+.float.c { left: 8px; top: 236px; }
+.float.d { right: 12px; top: 262px; }
 .split-form {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 48px 56px;
+  overflow: auto;
+  padding: 36px 48px 40px;
   background: #fff;
 }
-.split-form .pill-form .btn.primary { background: #1657a8; border-color: #1657a8; }
-.split-form .pill-form .btn.primary:hover { background: #124784; }
-.split-form h1, .split-form .lede, .split-form .stepper { width: min(440px, 100%); }
-.split-form h1 { font-family: var(--serif); font-size: 40px; font-weight: 560; letter-spacing: -0.03em; }
-.split-form .lede { max-width: 36ch; margin: 10px 0 0; color: var(--muted); }
-.split-form .fill-user,
-.split-form .pill-form,
-.split-form .text-login { width: min(440px, 100%); }
+.split-form h1, .split-form .stepper, .split-form .door-form, .split-form .text-login { width: min(420px, 100%); }
+.split-form h1 { margin: 4px 0 22px; font-size: 32px; font-weight: 650; letter-spacing: -0.03em; }
+.stepper.door { grid-template-columns: repeat(4, 1fr); }
+.door-form { display: flex; flex-direction: column; }
+.social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  border: 1px solid #d5dbe3;
+  border-radius: 12px;
+  background: #fff;
+  color: #1d2733;
+  font-weight: 650;
+}
+.social + .social { margin-top: 10px; }
+.social:hover { background: #f7f9fb; }
+.social .logo { width: 18px; height: 18px; fill: none; stroke: none; }
+.social .g1 { fill: #4285f4; }
+.social .g2 { fill: #34a853; }
+.social .g3 { fill: #fbbc05; }
+.social .g4 { fill: #ea4335; }
+.social .m1 { fill: #f25022; }
+.social .m2 { fill: #7fba00; }
+.social .m3 { fill: #00a4ef; }
+.social .m4 { fill: #ffb900; }
+.or { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #8b93a0; font-size: 13px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: #e4e7ec; }
+.mail-wrap { position: relative; display: block; }
+.mail-wrap svg { position: absolute; left: 14px; top: 15px; width: 18px; height: 18px; color: #8b93a0; }
+.mail-wrap input { width: 100%; padding-left: 42px; }
+.door-form .field input { height: 48px; border-radius: 12px; padding: 0 16px; border-color: #d5dbe3; }
+.door-form .btn.primary { width: 100%; height: 48px; margin-top: 14px; border-radius: 12px; background: #1657a8; border-color: #1657a8; }
+.door-form .btn.primary:hover { background: #124784; }
+.account-rest { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid #eef1f4; }
+.account-rest .fill-user { margin-top: 4px; }
 .column { min-height: 100vh; display: flex; justify-content: center; padding: 56px 20px 80px; background: #f6f5f3; }
 .column-sheet { width: min(520px, 100%); }
 .work { list-style: none; margin: 22px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
