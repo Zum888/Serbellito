@@ -4,7 +4,7 @@ import { COMPANY, SAMPLE_CSV_NAME, SAMPLE_CSV_PATH } from '../catalog'
 import { draftsToMovements, parseCsv, toPreviewRows } from '../csv'
 import { fingerprint, paymentsWithoutInvoice } from '../domain'
 import { money } from '../format'
-import { useStore } from '../store'
+import { EMPTY_PROFILE, useStore } from '../store'
 
 const DEMO_COMPANY = {
   rfc: COMPANY.rfc,
@@ -93,6 +93,35 @@ function Stepper({ step }: { step: Stage }) {
   )
 }
 
+type Job = { title: string; state: string; detail: string }
+
+function WorkList({ jobs, beat, testId }: { jobs: Job[]; beat: number; testId: string }) {
+  return (
+    <ol className="work" data-testid={testId}>
+      {jobs.map((job, index) => {
+        const place = index + 1 < beat ? 'done' : index + 1 === beat ? 'active' : 'wait'
+        return (
+          <li key={job.title} className={place}>
+            <span className="mark" aria-hidden="true">
+              {place === 'done' ? '✓' : place === 'active' ? <i /> : ''}
+            </span>
+            <div>
+              <strong>{job.title}</strong>
+              <em>{place === 'done' ? 'Listo' : place === 'active' ? job.state : 'En espera'}</em>
+              {place !== 'wait' && <p>{job.detail}</p>}
+              {place === 'active' && (
+                <span className="bar">
+                  <i />
+                </span>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 function FillButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" className="btn fill-user" data-testid="fill-as-user" onClick={onClick}>
@@ -128,37 +157,63 @@ function Account() {
     patchOnboarding({ step: 'company', profile: { name: name.trim(), email: email.trim(), phone: phone.trim() } })
   }
 
+  const invoices = state.invoices.length
+  const received = state.invoices.filter((invoice) => invoice.direction === 'recibida').length
+  const issued = invoices - received
+  const reconciled = state.movements.filter((movement) => movement.reconciliation === 'confirmada').length
+
   return (
     <div className="split">
       <aside className="split-side">
-        <p className="wordmark">Serbell</p>
-        <h2>La mesa donde cuadran facturas y banco.</h2>
-        <p>Serbellito ordena los CFDIs, los movimientos y el siguiente paso. En pesos mexicanos, en este navegador.</p>
-        <ul className="benefits">
-          <li>
-            <span>01</span>
-            Conciliar cada movimiento con el CFDI del mismo monto.
-          </li>
-          <li>
-            <span>02</span>
-            Organizar los gastos por proveedor, RFC y categoría.
-          </li>
-          <li>
-            <span>03</span>
-            Ver qué sigue: un cobro, un complemento o un pago abierto.
-          </li>
-        </ul>
-        <p className="split-from">Llegas desde serbell.com</p>
+        <div className="split-copy">
+          <p className="wordmark">Serbell</p>
+          <h2>Tu CFO con IA, desde el primer día.</h2>
+          <p>Serbellito deja lista la mesa de Distribuidora La Central. Llegas desde serbell.com. Pesos mexicanos, en este navegador.</p>
+          <ul className="benefits">
+            <li>
+              <span>01</span>
+              Conciliar cada movimiento con el CFDI del mismo monto.
+            </li>
+            <li>
+              <span>02</span>
+              Organizar los gastos por proveedor, RFC y categoría.
+            </li>
+            <li>
+              <span>03</span>
+              Ver qué sigue: un cobro, un complemento o un pago abierto.
+            </li>
+          </ul>
+        </div>
+        <div className="floats">
+          <article className="float a">
+            <strong>Comprobantes registrados</strong>
+            <span>
+              {invoices} facturas · {received} recibidas · {issued} emitidas
+            </span>
+          </article>
+          <article className="float b">
+            <strong>Movimientos conciliados</strong>
+            <span>{reconciled} ligados a un CFDI</span>
+          </article>
+          <article className="float c">
+            <strong>Recordatorio de cobro</strong>
+            <span>Empaques de Occidente · $18,560</span>
+          </article>
+          <article className="float d">
+            <strong>Reporte mensual</strong>
+            <span>Noviembre 2026 · pesos MXN</span>
+          </article>
+        </div>
       </aside>
       <section className="split-form">
         <Stepper step="account" />
-        <h1>Crea tu cuenta</h1>
-        <p className="lede">Nombre, correo, celular y contraseña. La contraseña se queda en esta pantalla.</p>
+        <h1>Crea tu cuenta en Serbell</h1>
+        <p className="lede">El correo abre la cuenta. La contraseña se queda en esta pantalla.</p>
         <FillButton
           onClick={() =>
             type([
-              { write: setName, value: OSCAR.name },
               { write: setEmail, value: OSCAR.email },
+              { write: setName, value: OSCAR.name },
               { write: setPhone, value: OSCAR.phone },
               { write: setPassword, value: OSCAR.password },
             ])
@@ -172,12 +227,12 @@ function Account() {
           }}
         >
         <label className="field">
-          Nombre
-          <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
-        </label>
-        <label className="field">
           Correo
           <input type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+        </label>
+        <label className="field">
+          Nombre
+          <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
         </label>
         <label className="field">
           Celular
@@ -312,25 +367,32 @@ function Sat() {
   const [beat, setBeat] = useState(0)
   const [hint, setHint] = useState('')
   const type = useTyper()
+  const stop = useRef(false)
   const received = state.invoices.filter((invoice) => invoice.direction === 'recibida').length
   const issued = state.invoices.filter((invoice) => invoice.direction === 'emitida').length
-  const lines = [
-    'Consultando al SAT · simulación',
-    `Descargando 100 CFDIs: ${received} recibidas y ${issued} emitidas`,
-    'Verificando vigencias y complementos',
-    'Un pago de Empaques de Occidente por $18,560 puede cubrir A-184 y A-191.',
-    'Falta el complemento de A-191.',
+  const jobs: Job[] = [
+    { title: 'Conectar', state: 'conectando', detail: 'Entrando al SAT con el RFC. Simulación: la CIEC no se envía.' },
+    { title: 'Bajar facturas', state: 'descargando', detail: `100 CFDIs · ${received} recibidas · ${issued} emitidas` },
+    { title: 'Verificar', state: 'verificando', detail: 'Vigencias, complementos y lo que todavía no cierra.' },
+    {
+      title: 'Analizar',
+      state: 'analizando',
+      detail: 'Empaques de Occidente · $18,560 puede cubrir A-184 y A-191. Falta el complemento de A-191.',
+    },
   ]
 
   useEffect(() => {
-    if (!running) return
-    if (beat >= lines.length) {
-      const timer = window.setTimeout(() => patchOnboarding({ step: 'bank', sat: 'connected' }), 600)
+    if (!running || stop.current) return
+    if (beat > jobs.length) {
+      const timer = window.setTimeout(() => {
+        if (stop.current) return
+        patchOnboarding({ step: 'bank', sat: 'connected' })
+      }, 700)
       return () => window.clearTimeout(timer)
     }
-    const timer = window.setTimeout(() => setBeat((current) => current + 1), 700)
+    const timer = window.setTimeout(() => setBeat((current) => current + 1), 1100)
     return () => window.clearTimeout(timer)
-  }, [running, beat, lines.length, patchOnboarding])
+  }, [running, beat, jobs.length, patchOnboarding])
 
   function start() {
     if (!rfc.trim() || !password) {
@@ -347,7 +409,15 @@ function Sat() {
       title="Hola, bienvenido. Conectemos el SAT."
       lede="Esto es una simulación. La contraseña no se envía al SAT."
       skip={
-        <button type="button" className="btn quiet" data-testid="skip-sat" onClick={() => patchOnboarding({ step: 'bank', sat: 'skipped' })}>
+        <button
+          type="button"
+          className="btn quiet"
+          data-testid="skip-sat"
+          onClick={() => {
+            stop.current = true
+            patchOnboarding({ step: 'bank', sat: 'skipped' })
+          }}
+        >
           Saltar
         </button>
       }
@@ -382,13 +452,7 @@ function Sat() {
           </button>
         </form>
       ) : (
-        <ol className="gate-run" data-testid="sat-run">
-          {lines.slice(0, beat).map((line) => (
-            <li key={line} className="on">
-              {line}
-            </li>
-          ))}
-        </ol>
+        <WorkList jobs={jobs} beat={beat} testId="sat-run" />
       )}
     </Panel>
   )
@@ -398,25 +462,34 @@ function Bank() {
   const { state, patchOnboarding, importMovements } = useStore()
   const [running, setRunning] = useState(false)
   const [beat, setBeat] = useState(0)
-  const [lines, setLines] = useState<string[]>([])
+  const [jobs, setJobs] = useState<Job[]>([])
   const [error, setError] = useState('')
-  const timer = useRef<number | null>(null)
+  const pending = useRef<ReturnType<typeof draftsToMovements>>([])
+  const outcome = useRef({ origin: 'ejemplo' as 'ejemplo' | 'csv', fileName: '', added: 0 })
+  const finished = useRef(false)
 
   useEffect(() => {
-    return () => {
-      if (timer.current) window.clearInterval(timer.current)
+    if (!running || finished.current) return
+    if (beat > jobs.length) {
+      const timer = window.setTimeout(() => {
+        if (finished.current) return
+        finished.current = true
+        importMovements(pending.current)
+        patchOnboarding({
+          step: 'summary',
+          bank: outcome.current.origin === 'ejemplo' ? 'example' : 'file',
+          bankFile: outcome.current.fileName,
+          bankAdded: outcome.current.added,
+        })
+      }, 700)
+      return () => window.clearTimeout(timer)
     }
-  }, [])
-
-  function stop() {
-    if (timer.current) {
-      window.clearInterval(timer.current)
-      timer.current = null
-    }
-  }
+    const timer = window.setTimeout(() => setBeat((current) => current + 1), 1100)
+    return () => window.clearTimeout(timer)
+  }, [running, beat, jobs.length, importMovements, patchOnboarding])
 
   function skip() {
-    stop()
+    finished.current = true
     patchOnboarding({ step: 'summary', bank: 'skipped', bankFile: '', bankAdded: 0 })
   }
 
@@ -431,38 +504,47 @@ function Bank() {
     const drafted = draftsToMovements(rows, state.invoices, state.applications, origin, fileName, state.categoryRules)
     const known = new Set(state.movements.map((movement) => fingerprint(movement)))
     const fresh = drafted.filter((movement) => !known.has(fingerprint(movement)))
-    const shown = fresh.slice(0, 6).map((movement) => {
-      const amount = movement.cargo > 0 ? money(movement.cargo) : money(movement.abono)
-      return `${movement.concept} · ${amount}`
-    })
-    const script = [
-      origin === 'ejemplo' ? 'Abriendo el estado de cuenta de ejemplo' : `Leyendo ${fileName}`,
-      'Separando cargos y abonos',
-      ...shown,
-      fresh.length
-        ? `Quedaron ${fresh.length} movimientos nuevos. Los que ya estaban en la demo no salen de este archivo.`
-        : 'Esos movimientos ya estaban en la demo. No los volví a cargar ni los atribuí a este archivo.',
-    ]
-    setLines(script)
+    const pictured = draftsToMovements(
+      rows.map((row) => ({ ...row, include: true, status: row.status === 'duplicado' ? 'nuevo' : row.status })),
+      state.invoices,
+      state.applications,
+      origin,
+      fileName,
+      state.categoryRules,
+    )
+    const cargos = pictured.filter((movement) => movement.cargo > 0).length
+    const abonos = pictured.filter((movement) => movement.abono > 0).length
+    const crossed = pictured.filter((movement) => movement.suggestionIds.length > 0).length
+    const unmatched = pictured.filter((movement) => movement.suggestionIds.length === 0 && movement.reconciliation !== 'no_requiere').length
+    pending.current = fresh
+    outcome.current = { origin, fileName, added: fresh.length }
+    finished.current = false
+    setJobs([
+      {
+        title: 'Leer el estado',
+        state: 'leyendo',
+        detail: `${origin === 'ejemplo' ? 'Estado de cuenta de ejemplo' : fileName} · ${rows.length} movimientos`,
+      },
+      {
+        title: 'Clasificar movimientos',
+        state: 'clasificando',
+        detail: `${cargos} ${cargos === 1 ? 'cargo' : 'cargos'} · ${abonos} ${abonos === 1 ? 'abono' : 'abonos'}`,
+      },
+      {
+        title: 'Cruzar con facturas',
+        state: 'cruzando',
+        detail: crossed ? `${crossed} con una factura posible` : 'Ningún movimiento nuevo trae una factura posible',
+      },
+      {
+        title: 'Dejar los que no coinciden',
+        state: 'analizando',
+        detail: fresh.length
+          ? `${unmatched} sin coincidencia. ${fresh.length} movimientos nuevos; el resto ya estaba en la demo.`
+          : 'Esos movimientos ya estaban en la demo. No los volví a cargar ni los atribuí a este archivo.',
+      },
+    ])
     setBeat(1)
     setRunning(true)
-    let step = 1
-    stop()
-    timer.current = window.setInterval(() => {
-      step += 1
-      setBeat(step)
-      if (step < script.length) return
-      stop()
-      timer.current = window.setTimeout(() => {
-        importMovements(fresh)
-        patchOnboarding({
-          step: 'summary',
-          bank: origin === 'ejemplo' ? 'example' : 'file',
-          bankFile: fileName,
-          bankAdded: fresh.length,
-        })
-      }, 500)
-    }, 450)
   }
 
   async function useSample() {
@@ -528,13 +610,7 @@ function Bank() {
           {error && <p className="field-error">{error}</p>}
         </div>
       ) : (
-        <ol className="gate-run" data-testid="bank-run">
-          {lines.slice(0, beat).map((line) => (
-            <li key={line} className="on">
-              {line}
-            </li>
-          ))}
-        </ol>
+        <WorkList jobs={jobs} beat={beat} testId="bank-run" />
       )}
     </Panel>
   )
@@ -602,6 +678,23 @@ function Summary() {
       <div className="gate-actions">
         <button type="button" className="btn primary" data-testid="enter-inicio" onClick={() => patchOnboarding({ step: 'done' })}>
           Entrar a Inicio
+        </button>
+        <button
+          type="button"
+          className="btn"
+          data-testid="back-to-gate"
+          onClick={() =>
+            patchOnboarding({
+              step: 'gate',
+              sat: 'pending',
+              bank: 'pending',
+              bankFile: '',
+              bankAdded: 0,
+              profile: { ...EMPTY_PROFILE },
+            })
+          }
+        >
+          Volver al inicio
         </button>
       </div>
     </Panel>
