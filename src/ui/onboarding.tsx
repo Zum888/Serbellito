@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { COMPANY, SAMPLE_CSV_NAME, SAMPLE_CSV_PATH } from '../catalog'
 import { draftsToMovements, parseCsv, toPreviewRows } from '../csv'
 import { fingerprint, paymentsWithoutInvoice } from '../domain'
@@ -19,40 +20,202 @@ export function onboardingQuery(): boolean {
   return new URLSearchParams(window.location.search).get('onboarding') === '1'
 }
 
+const OSCAR = {
+  name: 'Óscar',
+  email: 'oscar@distribuidoralacentral.mx',
+  phone: '33 1555 0140',
+  password: 'Central2026',
+  ciec: 'CiecDemo2026',
+}
+
+type Stage = 'gate' | 'account' | 'company' | 'sat' | 'bank' | 'summary'
+
+function useTyper() {
+  const timers = useRef<number[]>([])
+  useEffect(() => {
+    return () => timers.current.forEach((id) => window.clearTimeout(id))
+  }, [])
+  return (fields: { write: (value: string) => void; value: string }[]) => {
+    timers.current.forEach((id) => window.clearTimeout(id))
+    timers.current = []
+    fields.forEach((field) => field.write(''))
+    let delay = 80
+    fields.forEach((field) => {
+      for (let index = 1; index <= field.value.length; index += 1) {
+        const next = field.value.slice(0, index)
+        delay += 32
+        timers.current.push(window.setTimeout(() => field.write(next), delay))
+      }
+      delay += 220
+    })
+  }
+}
+
+function clearOnboardingQuery() {
+  if (!onboardingQuery()) return
+  const url = new URL(window.location.href)
+  url.searchParams.delete('onboarding')
+  const next = `${url.pathname}${url.search}${url.hash}`
+  window.history.replaceState(null, '', next || '/')
+}
+
 export function Onboarding() {
   const { state } = useStore()
-  const step = onboardingQuery() ? 'gate' : state.onboarding.step
+  const stored = state.onboarding.step
+  const step: Stage = onboardingQuery() || stored === 'done' ? 'gate' : stored
   return (
-    <div className="gate">
-      <div className="gate-card">
-        <p className="gate-mark">Serbell</p>
-        <p className="gate-from">Llegas desde serbell.com</p>
-        {step === 'gate' && <Gate />}
-        {step === 'account' && <Account />}
-        {step === 'company' && <Company />}
-        {step === 'sat' && <Sat />}
-        {step === 'bank' && <Bank />}
-        {step === 'summary' && <Summary />}
-      </div>
+    <div className="board">
+      <Showcase />
+      <section className="board-panel">
+        {step !== 'gate' && <Stepper step={step} />}
+        <div className="board-body">
+          {step === 'gate' && <Gate />}
+          {step === 'account' && <Account />}
+          {step === 'company' && <Company />}
+          {step === 'sat' && <Sat />}
+          {step === 'bank' && <Bank />}
+          {step === 'summary' && <Summary />}
+        </div>
+      </section>
     </div>
+  )
+}
+
+function Showcase() {
+  const { state } = useStore()
+  const invoices = state.invoices.length
+  const received = state.invoices.filter((invoice) => invoice.direction === 'recibida').length
+  const issued = invoices - received
+  const reconciled = state.movements.filter((movement) => movement.reconciliation === 'confirmada').length
+  return (
+    <aside className="board-side">
+      <p className="board-brand">Serbell</p>
+      <h2>Tu CFO con IA, desde el primer día.</h2>
+      <p>Serbellito deja lista la mesa de Distribuidora La Central. Llegas desde serbell.com. La demostración vive en este navegador.</p>
+      <ul className="board-benefits">
+        <li>
+          <BenefitIcon kind="match" />
+          <span>Conciliar movimientos con la factura del mismo monto.</span>
+        </li>
+        <li>
+          <BenefitIcon kind="folder" />
+          <span>Organizar gastos por proveedor, RFC y categoría.</span>
+        </li>
+        <li>
+          <BenefitIcon kind="eye" />
+          <span>Visibilidad de lo que sigue: cobros, complementos y pagos abiertos.</span>
+        </li>
+      </ul>
+      <div className="orbit">
+        <div className="infinity" aria-hidden="true">
+          <svg viewBox="0 0 86 42">
+            <path d="M24 21c0-7.4 5.4-13 13.2-13 8.6 0 12.2 8.2 18.8 13 6.4 4.6 10.6 13 19 13 7.6 0 13-5.6 13-13S82.6 8 75 8c-8.4 0-12.6 8.4-19 13-6.6 4.8-10.2 13-18.8 13C29.4 34 24 28.4 24 21Z" />
+          </svg>
+        </div>
+        <article className="float a">
+          <strong>Comprobantes registrados</strong>
+          <span>
+            {invoices} facturas · {received} recibidas · {issued} emitidas
+          </span>
+        </article>
+        <article className="float b">
+          <strong>Movimientos conciliados</strong>
+          <span>{reconciled} ligados a un CFDI</span>
+        </article>
+        <article className="float c">
+          <strong>Recordatorio de cobro</strong>
+          <span>Empaques de Occidente · $18,560</span>
+        </article>
+        <article className="float d">
+          <strong>Reporte mensual</strong>
+          <span>Noviembre 2026 · pesos MXN</span>
+        </article>
+      </div>
+    </aside>
+  )
+}
+
+function BenefitIcon({ kind }: { kind: 'match' | 'folder' | 'eye' }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {kind === 'match' && <path d="M4 12h6M14 12h6M12 7v10M8 8l4 4-4 4M16 8l-4 4 4 4" />}
+      {kind === 'folder' && <path d="M3 7h6l2 2h10v9H3z" />}
+      {kind === 'eye' && (
+        <>
+          <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z" />
+          <circle cx="12" cy="12" r="2.5" />
+        </>
+      )}
+    </svg>
+  )
+}
+
+function Stepper({ step }: { step: Stage }) {
+  const current = step === 'account' ? 0 : step === 'company' ? 1 : step === 'summary' ? 3 : 2
+  const labels = ['Cuenta', 'Empresa', 'Conexión', 'Listo']
+  return (
+    <ol className="stepper" aria-label="Progreso">
+      {labels.map((label, index) => (
+        <li key={label} className={index < current ? 'done' : index === current ? 'on' : ''}>
+          <i />
+          {label}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function FillButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="btn fill-user" data-testid="fill-as-user" onClick={onClick}>
+      Rellenar como el usuario
+    </button>
+  )
+}
+
+function Panel({ title, lede, skip, children }: { title: string; lede?: string; skip?: ReactNode; children: ReactNode }) {
+  return (
+    <>
+      <div className="board-head">
+        <h1>{title}</h1>
+        {skip}
+      </div>
+      {lede && <p className="lede">{lede}</p>}
+      {children}
+    </>
   )
 }
 
 function Gate() {
   const { patchOnboarding } = useStore()
   return (
-    <>
-      <h1>Entra a Serbellito</h1>
-      <p className="lede">La mesa de trabajo de Distribuidora La Central, en Guadalajara.</p>
+    <Panel title="Entra a Serbellito" lede="La mesa de trabajo de Distribuidora La Central, en Guadalajara.">
+      <p className="board-from">Llegas desde serbell.com</p>
       <div className="gate-actions">
-        <button type="button" className="btn primary" data-testid="gate-login" onClick={() => patchOnboarding({ step: 'done' })}>
+        <button
+          type="button"
+          className="btn primary"
+          data-testid="gate-login"
+          onClick={() => {
+            clearOnboardingQuery()
+            patchOnboarding({ step: 'done' })
+          }}
+        >
           Iniciar sesión
         </button>
-        <button type="button" className="btn" data-testid="gate-register" onClick={() => patchOnboarding({ step: 'account' })}>
+        <button
+          type="button"
+          className="btn"
+          data-testid="gate-register"
+          onClick={() => {
+            clearOnboardingQuery()
+            patchOnboarding({ step: 'account' })
+          }}
+        >
           Registrarte
         </button>
       </div>
-    </>
+    </Panel>
   )
 }
 
@@ -63,15 +226,24 @@ function Account() {
   const [email, setEmail] = useState(saved.email)
   const [phone, setPhone] = useState(saved.phone)
   const [password, setPassword] = useState('')
+  const type = useTyper()
 
   function continueAccount() {
     patchOnboarding({ step: 'company', profile: { name: name.trim(), email: email.trim(), phone: phone.trim() } })
   }
 
   return (
-    <>
-      <h1>Crea tu cuenta</h1>
-      <p className="lede">La pedimos una sola vez. La contraseña se queda en esta pantalla.</p>
+    <Panel title="Crea tu cuenta en Serbell" lede="La pedimos una sola vez. La contraseña se queda en esta pantalla.">
+      <FillButton
+        onClick={() =>
+          type([
+            { write: setName, value: OSCAR.name },
+            { write: setEmail, value: OSCAR.email },
+            { write: setPhone, value: OSCAR.phone },
+            { write: setPassword, value: OSCAR.password },
+          ])
+        }
+      />
       <form
         className="gate-form"
         onSubmit={(event) => {
@@ -99,7 +271,7 @@ function Account() {
           Continuar
         </button>
       </form>
-    </>
+    </Panel>
   )
 }
 
@@ -113,15 +285,18 @@ function Company() {
   const [web, setWeb] = useState(saved.web)
   const [email, setEmail] = useState(saved.companyEmail)
   const [phone, setPhone] = useState(saved.companyPhone)
+  const type = useTyper()
 
-  function useDemo() {
-    setRfc(DEMO_COMPANY.rfc)
-    setRazon(DEMO_COMPANY.razon)
-    setComercial(DEMO_COMPANY.comercial)
-    setTipo(DEMO_COMPANY.tipo)
-    setWeb(DEMO_COMPANY.web)
-    setEmail(DEMO_COMPANY.companyEmail)
-    setPhone(DEMO_COMPANY.companyPhone)
+  function fillCompany() {
+    type([
+      { write: setRfc, value: DEMO_COMPANY.rfc },
+      { write: setRazon, value: DEMO_COMPANY.razon },
+      { write: setComercial, value: DEMO_COMPANY.comercial },
+      { write: setWeb, value: DEMO_COMPANY.web },
+      { write: setEmail, value: DEMO_COMPANY.companyEmail },
+      { write: setPhone, value: DEMO_COMPANY.companyPhone },
+    ])
+    window.setTimeout(() => setTipo(DEMO_COMPANY.tipo), 6400)
   }
 
   function continueCompany() {
@@ -140,12 +315,8 @@ function Company() {
   }
 
   return (
-    <>
-      <h1>Tu empresa</h1>
-      <p className="lede">Puedes continuar con lo que esté lleno.</p>
-      <button type="button" className="btn" data-testid="use-company" onClick={useDemo}>
-        Usar Distribuidora La Central
-      </button>
+    <Panel title="Tu empresa" lede="Puedes continuar con lo que esté lleno.">
+      <FillButton onClick={fillCompany} />
       <form
         className="gate-form"
         onSubmit={(event) => {
@@ -189,7 +360,7 @@ function Company() {
           Continuar
         </button>
       </form>
-    </>
+    </Panel>
   )
 }
 
@@ -200,6 +371,7 @@ function Sat() {
   const [running, setRunning] = useState(false)
   const [beat, setBeat] = useState(0)
   const [hint, setHint] = useState('')
+  const type = useTyper()
   const received = state.invoices.filter((invoice) => invoice.direction === 'recibida').length
   const issued = state.invoices.filter((invoice) => invoice.direction === 'emitida').length
   const lines = [
@@ -232,14 +404,15 @@ function Sat() {
   }
 
   return (
-    <>
-      <div className="gate-top">
-        <h1>Hola, bienvenido. Conectemos el SAT.</h1>
+    <Panel
+      title="Hola, bienvenido. Conectemos el SAT."
+      lede="Esto es una simulación. La contraseña no se envía al SAT."
+      skip={
         <button type="button" className="btn quiet" data-testid="skip-sat" onClick={() => patchOnboarding({ step: 'bank', sat: 'skipped' })}>
           Saltar
         </button>
-      </div>
-      <p className="gate-note">Esto es una simulación. La contraseña no se envía al SAT.</p>
+      }
+    >
       {!running ? (
         <form
           className="gate-form"
@@ -257,6 +430,14 @@ function Sat() {
             <input type="password" value={password} autoComplete="off" onChange={(event) => setPassword(event.target.value)} />
           </label>
           {hint && <p className="field-error">{hint}</p>}
+          <FillButton
+            onClick={() =>
+              type([
+                { write: setRfc, value: state.onboarding.profile.rfc || DEMO_COMPANY.rfc },
+                { write: setPassword, value: OSCAR.ciec },
+              ])
+            }
+          />
           <button type="submit" className="btn primary" data-testid="sat-next">
             Continuar
           </button>
@@ -270,7 +451,7 @@ function Sat() {
           ))}
         </ol>
       )}
-    </>
+    </Panel>
   )
 }
 
@@ -367,14 +548,15 @@ function Bank() {
   }
 
   return (
-    <>
-      <div className="gate-top">
-        <h1>Sube tus movimientos</h1>
+    <Panel
+      title="Sube tus movimientos"
+      lede="Estado de cuenta del banco. También es una simulación: nada sale de este navegador."
+      skip={
         <button type="button" className="btn quiet" data-testid="skip-bank" onClick={skip}>
           Saltar
         </button>
-      </div>
-      <p className="lede">Estado de cuenta del banco. También es una simulación: nada sale de este navegador.</p>
+      }
+    >
       {!running ? (
         <div
           className="gate-drop"
@@ -415,7 +597,7 @@ function Bank() {
           ))}
         </ol>
       )}
-    </>
+    </Panel>
   )
 }
 
@@ -429,9 +611,7 @@ function Summary() {
   const company = state.onboarding.profile.razon || COMPANY.name
 
   return (
-    <>
-      <h1>Esto es lo que vi</h1>
-      <p className="lede">{company}. Todo sigue en este navegador.</p>
+    <Panel title="Esto es lo que vi" lede={`${company}. Todo sigue en este navegador.`}>
       <div className="gate-summary" data-testid="onboarding-summary">
         {sat === 'connected' ? (
           <article className="gate-card-item">
@@ -485,6 +665,6 @@ function Summary() {
           Entrar a Inicio
         </button>
       </div>
-    </>
+    </Panel>
   )
 }
