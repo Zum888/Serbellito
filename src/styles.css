@@ -710,7 +710,7 @@ tr.fresh { background: #f7f6f4; }
   height: 80px;
   border: 0;
   border-radius: 999px;
-  background: #2f6bff;
+  background: #2e69f4;
   background-image: none;
   color: #fff;
   font-size: 18px;
@@ -720,7 +720,7 @@ tr.fresh { background: #f7f6f4; }
   filter: none;
 }
 .door-card .go svg { width: 22px; height: 22px; stroke: #fff; stroke-width: 2; }
-.door-card .go:hover { background: #2f6bff; background-image: none; filter: none; }
+.door-card .go:hover { background: #2e69f4; background-image: none; filter: none; }
 .door-card .fill-user {
   display: block;
   width: auto;
@@ -793,9 +793,9 @@ tr.fresh { background: #f7f6f4; }
 .pill-form .field input, .pill-form .field select { height: 48px; border-radius: 999px; padding: 0 18px; border-color: #e4ded6; background: #fff; }
 .column .pill-form .btn.primary,
 .column .pill-form .btn.primary:hover {
-  background: #2f6bff;
+  background: #2e69f4;
   background-image: none;
-  border-color: #2f6bff;
+  border-color: #2e69f4;
   color: #fff;
   filter: none;
 }
