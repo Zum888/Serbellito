@@ -145,75 +145,68 @@ function Panel({ title, lede, skip, children }: { title: string; lede?: string; 
 
 function Account() {
   const { state, patchOnboarding } = useStore()
-  const saved = state.onboarding.profile
-  const [name, setName] = useState(saved.name)
-  const [email, setEmail] = useState(saved.email)
-  const [phone, setPhone] = useState(saved.phone)
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(state.onboarding.profile.email)
   const type = useTyper()
 
   function continueAccount() {
     clearOnboardingQuery()
-    patchOnboarding({ step: 'company', profile: { name: name.trim(), email: email.trim(), phone: phone.trim() } })
+    patchOnboarding({ step: 'company', profile: { email: email.trim() } })
   }
 
   return (
     <div className="split">
       <aside className="split-side">
         <div className="split-copy">
-          <p className="mx-pill">México</p>
           <h2>
             Conciliación de facturas y bancos,
             <span>en automático.</span>
           </h2>
-          <p>Conecta el SAT y tus bancos. Serbellito baja las facturas, lee los movimientos y deja la conciliación lista.</p>
-          <ul className="pitch">
-            <li>
-              <span className="pitch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M6 3h9l3 3v15H6z" />
-                  <path d="M9 12h6M9 16h6" />
-                </svg>
-              </span>
-              <span>
-                <strong>Facturas del SAT</strong>
-                100 CFDIs de la demo, en pesos mexicanos.
-              </span>
-            </li>
-            <li>
-              <span className="pitch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <rect x="3" y="6" width="18" height="12" rx="2" />
-                  <path d="M3 10h18" />
-                </svg>
-              </span>
-              <span>
-                <strong>Movimientos bancarios</strong>
-                Cargos y abonos del estado de cuenta.
-              </span>
-            </li>
-            <li>
-              <span className="pitch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </span>
-              <span>
-                <strong>Conciliación automática</strong>
-                El pago de $18,560 con las facturas del mismo monto.
-              </span>
-            </li>
-          </ul>
+          <p>Conecta tus facturas del SAT y tus estados de cuenta para mantener tus finanzas al día.</p>
         </div>
-        <svg className="wave" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 70c180 46 320-36 520-18s340 62 520 28 250-48 400-18v78H0z" />
-          <path d="M0 96c220 28 380-24 600-4s360 40 840 8v40H0z" />
+        <div className="glass-scene">
+          <article className="glass invoice">
+            <header>
+              <strong>Factura</strong>
+              <em>A-184</em>
+            </header>
+            <p>Empaques de Occidente</p>
+            <div className="paper-lines" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </div>
+            <footer>$18,560</footer>
+          </article>
+          <article className="glass bank">
+            <header>
+              <strong>Banco</strong>
+              <em>Movimientos</em>
+            </header>
+            <ul>
+              <li>
+                <span>Cargo</span>
+                <b>$4,200</b>
+              </li>
+              <li>
+                <span>Abono</span>
+                <b>$18,560</b>
+              </li>
+              <li>
+                <span>Cargo</span>
+                <b>$890</b>
+              </li>
+            </ul>
+          </article>
+        </div>
+        <svg className="wave" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 78c220 48 420-42 680-8s430 54 760 6v84H0z" />
+          <path d="M0 108c240 28 460-22 720 6s390 28 720-4v50H0z" />
         </svg>
       </aside>
       <section className="split-form">
         <div className="door-card">
           <h1>Crea tu cuenta en Serbell</h1>
-          <p className="lede">Comienza a conciliar tus facturas y bancos.</p>
+          <p className="lede">Empieza a conciliar tus facturas y bancos en minutos.</p>
           <form
             className="door-form"
             onSubmit={(event) => {
@@ -221,39 +214,31 @@ function Account() {
               continueAccount()
             }}
           >
-            <FillButton
-              onClick={() =>
-                type([
-                  { write: setName, value: OSCAR.name },
-                  { write: setEmail, value: OSCAR.email },
-                  { write: setPhone, value: OSCAR.phone },
-                  { write: setPassword, value: OSCAR.password },
-                ])
-              }
-            />
             <label className="field">
-              Nombre
-              <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
-            </label>
-            <label className="field">
-              Correo
-              <input type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
-            </label>
-            <label className="field">
-              Celular
-              <span className="phone-wrap">
-                <span className="dial">+52</span>
-                <input value={phone} inputMode="tel" autoComplete="tel" onChange={(event) => setPhone(event.target.value)} />
+              <span className="mail-head">
+                Correo electrónico
+                <button
+                  type="button"
+                  className="fill-user"
+                  data-testid="fill-as-user"
+                  onClick={() => type([{ write: setEmail, value: OSCAR.email }])}
+                >
+                  Rellenar como el usuario
+                </button>
               </span>
-            </label>
-            <label className="field">
-              Contraseña
-              <input type="password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
+              <input type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
             </label>
             <button type="submit" className="btn primary" data-testid="account-next">
               Continuar
             </button>
           </form>
+          <div className="dot-rule" aria-hidden="true">
+            <span />
+          </div>
+          <button type="button" className="social">
+            <GoogleMark />
+            Continuar con Google
+          </button>
           <p className="have-account">
             ¿Ya tienes una cuenta?{' '}
             <button
@@ -270,6 +255,17 @@ function Account() {
         </div>
       </section>
     </div>
+  )
+}
+
+function GoogleMark() {
+  return (
+    <svg className="logo" viewBox="0 0 18 18" aria-hidden="true">
+      <path className="g1" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z" />
+      <path className="g2" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.6-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3C2.4 16.1 5.5 18 9 18z" />
+      <path className="g3" d="M3.9 10.7A5.4 5.4 0 0 1 3.6 9c0-.6.1-1.2.3-1.7V5H.9A9 9 0 0 0 0 9c0 1.4.3 2.8.9 4l3-2.3z" />
+      <path className="g4" d="M9 3.6c1.3 0 2.5.5 3.4 1.3L15 2.3C13.4.9 11.4 0 9 0 5.5 0 2.4 1.9.9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z" />
+    </svg>
   )
 }
 
