@@ -158,38 +158,42 @@ function Account() {
       <aside className="split-side">
         <div className="split-copy">
           <h2>
-            Conciliación de facturas y bancos,
+            Conciliación de
+            <br />
+            facturas y bancos,
+            <br />
             <span>en automático.</span>
           </h2>
           <p>Conecta tus facturas del SAT y tus estados de cuenta para mantener tus finanzas al día.</p>
         </div>
         <div className="glass-scene">
-          <article className="glass invoice">
-            <span className="glass-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M7 3h7l5 5v13H7z" />
-                <path d="M14 3v5h5M10 13h6M10 17h4" />
-              </svg>
-            </span>
-            <strong>Factura</strong>
-            <em>$18,560</em>
+          <article className="glass invoice" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path d="M15 10h12l8 8v20a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2z" />
+              <path d="M27 10v8h8" />
+              <path d="M18 25h12M18 30h12M18 35h8" />
+            </svg>
           </article>
-          <article className="glass bank">
-            <span className="glass-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <rect x="3" y="6" width="18" height="13" rx="2" />
-                <path d="M3 10h18M7 15h4" />
-              </svg>
-            </span>
-            <strong>Banco</strong>
-            <em>Movimientos</em>
+          <article className="glass bank" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path d="M9 20 24 11l15 9" />
+              <path d="M13 20v11M20 20v11M28 20v11M35 20v11" />
+              <path d="M8 31h32M7 36h34" />
+            </svg>
           </article>
         </div>
       </aside>
       <section className="split-form">
         <div className="door-card">
+          <svg className="infinity" viewBox="0 0 120 48" aria-hidden="true">
+            <path d="M60 24c0-9-8-16-18-16S22 15 22 24s8 16 20 16 18-7 18-16zm0 0c0 9 8 16 18 16s20-7 20-16-8-16-20-16-18 7-18 16z" />
+          </svg>
           <h1>Crea tu cuenta en Serbell</h1>
-          <p className="lede">Empieza a conciliar tus facturas y bancos en minutos.</p>
+          <p className="lede">
+            Empieza a conciliar tus facturas y bancos
+            <br />
+            en minutos.
+          </p>
           <form
             className="door-form"
             onSubmit={(event) => {
@@ -197,22 +201,24 @@ function Account() {
               continueAccount()
             }}
           >
-            <label className="field">
-              <span className="mail-head">
-                Correo electrónico
-                <button
-                  type="button"
-                  className="fill-user"
-                  data-testid="fill-as-user"
-                  onClick={() => type([{ write: setEmail, value: OSCAR.email }])}
-                >
-                  Rellenar como el usuario
-                </button>
-              </span>
-              <input type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+            <label className="mail-pill">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="M3 7l9 7 9-7" />
+              </svg>
+              <input
+                type="email"
+                value={email}
+                autoComplete="email"
+                placeholder="Correo electrónico"
+                onChange={(event) => setEmail(event.target.value)}
+              />
             </label>
-            <button type="submit" className="btn primary" data-testid="account-next">
+            <button type="submit" className="go" data-testid="account-next">
               Continuar
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 12h15M13 6l6 6-6 6" />
+              </svg>
             </button>
           </form>
           <div className="dot-rule" aria-hidden="true">
@@ -235,11 +241,19 @@ function Account() {
               Iniciar sesión
             </button>
           </p>
+          <button
+            type="button"
+            className="fill-user"
+            data-testid="fill-as-user"
+            onClick={() => type([{ write: setEmail, value: OSCAR.email }])}
+          >
+            Rellenar como el usuario
+          </button>
         </div>
       </section>
-      <svg className="wave" viewBox="0 0 1440 180" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0 96c220 42 460-36 740-4s460 40 700 10v78H0z" />
-        <path d="M0 128c240 24 480-18 760 6s460 16 680 2v44H0z" />
+      <svg className="wave" viewBox="0 0 1440 420" preserveAspectRatio="none" aria-hidden="true">
+        <path className="wave-back" d="M0 180c180-90 360 20 620-30 260-50 480 40 820-20v290H0z" />
+        <path className="wave-front" d="M0 270c200-60 420 30 700-20 240-42 420 24 740-16v186H0z" />
       </svg>
     </div>
   )
