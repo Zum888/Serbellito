@@ -165,43 +165,26 @@ function Account() {
         </div>
         <div className="glass-scene">
           <article className="glass invoice">
-            <header>
-              <strong>Factura</strong>
-              <em>A-184</em>
-            </header>
-            <p>Empaques de Occidente</p>
-            <div className="paper-lines" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </div>
-            <footer>$18,560</footer>
+            <span className="glass-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M7 3h7l5 5v13H7z" />
+                <path d="M14 3v5h5M10 13h6M10 17h4" />
+              </svg>
+            </span>
+            <strong>Factura</strong>
+            <em>$18,560</em>
           </article>
           <article className="glass bank">
-            <header>
-              <strong>Banco</strong>
-              <em>Movimientos</em>
-            </header>
-            <ul>
-              <li>
-                <span>Cargo</span>
-                <b>$4,200</b>
-              </li>
-              <li>
-                <span>Abono</span>
-                <b>$18,560</b>
-              </li>
-              <li>
-                <span>Cargo</span>
-                <b>$890</b>
-              </li>
-            </ul>
+            <span className="glass-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 10h18M7 15h4" />
+              </svg>
+            </span>
+            <strong>Banco</strong>
+            <em>Movimientos</em>
           </article>
         </div>
-        <svg className="wave" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 78c220 48 420-42 680-8s430 54 760 6v84H0z" />
-          <path d="M0 108c240 28 460-22 720 6s390 28 720-4v50H0z" />
-        </svg>
       </aside>
       <section className="split-form">
         <div className="door-card">
@@ -254,6 +237,10 @@ function Account() {
           </p>
         </div>
       </section>
+      <svg className="wave" viewBox="0 0 1440 180" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 96c220 42 460-36 740-4s460 40 700 10v78H0z" />
+        <path d="M0 128c240 24 480-18 760 6s460 16 680 2v44H0z" />
+      </svg>
     </div>
   )
 }
