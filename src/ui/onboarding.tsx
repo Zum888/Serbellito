@@ -78,20 +78,6 @@ export function Onboarding() {
   )
 }
 
-function DoorStepper() {
-  const labels = ['Cuenta', 'Empresa', 'Conexión', 'Listo']
-  return (
-    <ol className="stepper door" aria-label="Progreso">
-      {labels.map((label, index) => (
-        <li key={label} className={index === 0 ? 'on' : ''}>
-          <i />
-          {label}
-        </li>
-      ))}
-    </ol>
-  )
-}
-
 function Stepper({ step }: { step: Stage }) {
   const current = step === 'gate' || step === 'account' ? 0 : step === 'company' ? 1 : step === 'sat' ? 2 : step === 'bank' ? 3 : 4
   const labels = ['Cuenta', 'Tu empresa', 'SAT', 'Bancos', 'Listo']
@@ -157,38 +143,6 @@ function Panel({ title, lede, skip, children }: { title: string; lede?: string; 
   )
 }
 
-function BenefitIcon({ kind }: { kind: 'match' | 'folder' | 'next' }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      {kind === 'match' && <path d="M4 8h11M12 4l4 4-4 4M20 16H9M12 12l-4 4 4 4" />}
-      {kind === 'folder' && <path d="M3 7h6l2 2h10v9H3z" />}
-      {kind === 'next' && <path d="M5 12h14M13 6l6 6-6 6" />}
-    </svg>
-  )
-}
-
-function GoogleMark() {
-  return (
-    <svg className="logo" viewBox="0 0 18 18" aria-hidden="true">
-      <path className="g1" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z" />
-      <path className="g2" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.6-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3C2.4 16.1 5.5 18 9 18z" />
-      <path className="g3" d="M3.9 10.7A5.4 5.4 0 0 1 3.6 9c0-.6.1-1.2.3-1.7V5H.9A9 9 0 0 0 0 9c0 1.4.3 2.8.9 4l3-2.3z" />
-      <path className="g4" d="M9 3.6c1.3 0 2.5.5 3.4 1.3L15 2.3C13.4.9 11.4 0 9 0 5.5 0 2.4 1.9.9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z" />
-    </svg>
-  )
-}
-
-function MicrosoftMark() {
-  return (
-    <svg className="logo" viewBox="0 0 18 18" aria-hidden="true">
-      <rect className="m1" x="0" y="0" width="8" height="8" />
-      <rect className="m2" x="10" y="0" width="8" height="8" />
-      <rect className="m3" x="0" y="10" width="8" height="8" />
-      <rect className="m4" x="10" y="10" width="8" height="8" />
-    </svg>
-  )
-}
-
 function Account() {
   const { state, patchOnboarding } = useStore()
   const saved = state.onboarding.profile
@@ -203,125 +157,117 @@ function Account() {
     patchOnboarding({ step: 'company', profile: { name: name.trim(), email: email.trim(), phone: phone.trim() } })
   }
 
-  const invoices = state.invoices.length
-  const received = state.invoices.filter((invoice) => invoice.direction === 'recibida').length
-  const issued = invoices - received
-  const reconciled = state.movements.filter((movement) => movement.reconciliation === 'confirmada').length
-
   return (
     <div className="split">
       <aside className="split-side">
         <div className="split-copy">
+          <p className="mx-pill">México</p>
           <h2>
-            Tu CFO con IA,
-            <span>desde el primer día.</span>
+            Conciliación de facturas y bancos,
+            <span>en automático.</span>
           </h2>
-          <p>Serbellito junta facturas, banco y el siguiente paso. Llegas desde serbell.com.</p>
-          <ul className="benefits">
+          <p>Conecta el SAT y tus bancos. Serbellito baja las facturas, lee los movimientos y deja la conciliación lista.</p>
+          <ul className="pitch">
             <li>
-              <BenefitIcon kind="match" />
-              Conciliar movimientos con el CFDI del mismo monto.
+              <span className="pitch-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 3h9l3 3v15H6z" />
+                  <path d="M9 12h6M9 16h6" />
+                </svg>
+              </span>
+              <span>
+                <strong>Facturas del SAT</strong>
+                100 CFDIs de la demo, en pesos mexicanos.
+              </span>
             </li>
             <li>
-              <BenefitIcon kind="folder" />
-              Organizar gastos por proveedor y categoría.
+              <span className="pitch-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <rect x="3" y="6" width="18" height="12" rx="2" />
+                  <path d="M3 10h18" />
+                </svg>
+              </span>
+              <span>
+                <strong>Movimientos bancarios</strong>
+                Cargos y abonos del estado de cuenta.
+              </span>
             </li>
             <li>
-              <BenefitIcon kind="next" />
-              Ver cobros, complementos y lo que sigue.
+              <span className="pitch-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </span>
+              <span>
+                <strong>Conciliación automática</strong>
+                El pago de $18,560 con las facturas del mismo monto.
+              </span>
             </li>
           </ul>
         </div>
-        <div className="stage">
-          <div className="brand-piece">Serbell</div>
-          <article className="float a">
-            <strong>Comprobantes</strong>
-            <span>
-              {invoices} facturas · {received} recibidas · {issued} emitidas
-            </span>
-          </article>
-          <article className="float b">
-            <strong>Movimientos conciliados</strong>
-            <span>{reconciled} ligados a un CFDI</span>
-          </article>
-          <article className="float c">
-            <strong>Un cobro</strong>
-            <span>Empaques de Occidente · $18,560</span>
-          </article>
-          <article className="float d">
-            <strong>Reporte</strong>
-            <span>Noviembre 2026 · pesos MXN</span>
-          </article>
-        </div>
+        <svg className="wave" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 70c180 46 320-36 520-18s340 62 520 28 250-48 400-18v78H0z" />
+          <path d="M0 96c220 28 380-24 600-4s360 40 840 8v40H0z" />
+        </svg>
       </aside>
       <section className="split-form">
-        <DoorStepper />
-        <h1>Crea tu cuenta en Serbell</h1>
-        <form
-          className="door-form"
-          onSubmit={(event) => {
-            event.preventDefault()
-            continueAccount()
-          }}
-        >
-          <button type="button" className="social">
-            <GoogleMark />
-            Continuar con Google
-          </button>
-          <button type="button" className="social">
-            <MicrosoftMark />
-            Continuar con Microsoft
-          </button>
-          <div className="or">o</div>
-          <label className="field mail">
-            Correo electrónico
-            <span className="mail-wrap">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="3" y="5" width="18" height="14" rx="2" />
-                <path d="M3 7l9 7 9-7" />
-              </svg>
-              <input type="email" value={email} autoComplete="email" placeholder="correo@empresa.mx" onChange={(event) => setEmail(event.target.value)} />
-            </span>
-          </label>
-          <button type="submit" className="btn primary" data-testid="account-next">
-            Continuar
-          </button>
-          <div className="account-rest">
-            <label className="field">
-              Nombre
-              <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
-            </label>
-            <label className="field">
-              Celular
-              <input value={phone} inputMode="tel" autoComplete="tel" onChange={(event) => setPhone(event.target.value)} />
-            </label>
-            <label className="field">
-              Contraseña
-              <input type="password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
-            </label>
+        <div className="door-card">
+          <h1>Crea tu cuenta en Serbell</h1>
+          <p className="lede">Comienza a conciliar tus facturas y bancos.</p>
+          <form
+            className="door-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              continueAccount()
+            }}
+          >
             <FillButton
               onClick={() =>
                 type([
-                  { write: setEmail, value: OSCAR.email },
                   { write: setName, value: OSCAR.name },
+                  { write: setEmail, value: OSCAR.email },
                   { write: setPhone, value: OSCAR.phone },
                   { write: setPassword, value: OSCAR.password },
                 ])
               }
             />
-          </div>
-        </form>
-        <button
-          type="button"
-          className="text-login"
-          data-testid="gate-login"
-          onClick={() => {
-            clearOnboardingQuery()
-            patchOnboarding({ step: 'done' })
-          }}
-        >
-          Iniciar sesión
-        </button>
+            <label className="field">
+              Nombre
+              <input value={name} autoComplete="name" onChange={(event) => setName(event.target.value)} />
+            </label>
+            <label className="field">
+              Correo
+              <input type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+            </label>
+            <label className="field">
+              Celular
+              <span className="phone-wrap">
+                <span className="dial">+52</span>
+                <input value={phone} inputMode="tel" autoComplete="tel" onChange={(event) => setPhone(event.target.value)} />
+              </span>
+            </label>
+            <label className="field">
+              Contraseña
+              <input type="password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
+            </label>
+            <button type="submit" className="btn primary" data-testid="account-next">
+              Continuar
+            </button>
+          </form>
+          <p className="have-account">
+            ¿Ya tienes una cuenta?{' '}
+            <button
+              type="button"
+              data-testid="gate-login"
+              onClick={() => {
+                clearOnboardingQuery()
+                patchOnboarding({ step: 'done' })
+              }}
+            >
+              Iniciar sesión
+            </button>
+          </p>
+        </div>
       </section>
     </div>
   )
