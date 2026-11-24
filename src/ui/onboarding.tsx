@@ -348,7 +348,7 @@ function Company() {
           </select>
         </label>
         <label className="field">
-          Página web
+          Página web (opcional)
           <input value={web} onChange={(event) => setWeb(event.target.value)} />
         </label>
         <label className="field">
