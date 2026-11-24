@@ -221,13 +221,6 @@ function Account() {
               </svg>
             </button>
           </form>
-          <div className="dot-rule" aria-hidden="true">
-            <span />
-          </div>
-          <button type="button" className="social">
-            <GoogleMark />
-            Continuar con Google
-          </button>
           <p className="have-account">
             ¿Ya tienes una cuenta?{' '}
             <button
@@ -256,17 +249,6 @@ function Account() {
         <path className="wave-front" d="M0 270c200-60 420 30 700-20 240-42 420 24 740-16v186H0z" />
       </svg>
     </div>
-  )
-}
-
-function GoogleMark() {
-  return (
-    <svg className="logo" viewBox="0 0 18 18" aria-hidden="true">
-      <path className="g1" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z" />
-      <path className="g2" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.6-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3C2.4 16.1 5.5 18 9 18z" />
-      <path className="g3" d="M3.9 10.7A5.4 5.4 0 0 1 3.6 9c0-.6.1-1.2.3-1.7V5H.9A9 9 0 0 0 0 9c0 1.4.3 2.8.9 4l3-2.3z" />
-      <path className="g4" d="M9 3.6c1.3 0 2.5.5 3.4 1.3L15 2.3C13.4.9 11.4 0 9 0 5.5 0 2.4 1.9.9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z" />
-    </svg>
   )
 }
 

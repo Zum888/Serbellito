@@ -734,30 +734,7 @@ tr.fresh { background: #f7f6f4; }
   font-size: 12px;
   font-weight: 500;
 }
-.dot-rule { display: flex; align-items: center; margin: 32px 0; }
-.dot-rule::before, .dot-rule::after { content: ""; flex: 1; height: 1px; background: #e4e9f1; }
-.dot-rule span { width: 16px; height: 16px; margin: 0 16px; border: 1.5px solid #c3ccd8; border-radius: 50%; background: #fff; }
-.social {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  height: 76px;
-  border: 1.5px solid #d7dfeb;
-  border-radius: 999px;
-  background: #fff;
-  color: #1a2744;
-  font-size: 16px;
-  font-weight: 700;
-}
-.social:hover { background: #f8fafc; }
-.social .logo { width: 18px; height: 18px; fill: none; stroke: none; }
-.social .g1 { fill: #4285f4; }
-.social .g2 { fill: #34a853; }
-.social .g3 { fill: #fbbc05; }
-.social .g4 { fill: #ea4335; }
-.have-account { margin: 32px 0 0; color: #8b95a8; text-align: center; font-size: 15px; }
+.have-account { margin: 28px 0 0; color: #8b95a8; text-align: center; font-size: 15px; }
 .have-account button { color: #2e69f4; font-weight: 700; }
 .column { min-height: 100vh; display: flex; justify-content: center; padding: 56px 20px 80px; background: #f6f5f3; }
 .column-sheet { width: min(520px, 100%); }
