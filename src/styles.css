@@ -814,20 +814,19 @@ tr.fresh { background: #f7f6f4; }
 .nick-primary:hover { background: #2e69f4; background-image: none; filter: none; }
 .nick-list, .nick-tour { list-style: none; margin: 8px 0 0; padding: 0; }
 .nick-row, .nick-tour li { padding: 16px 0; border-bottom: 1px solid #e7e1d8; }
-.nick-name { display: flex; align-items: baseline; gap: 12px; text-align: left; color: #2c2a27; }
-.nick-name strong, .nick-name-hit strong { font-size: 22px; letter-spacing: -0.02em; }
-.nick-name-hit { color: inherit; text-align: left; }
-.nick-put { font-size: 14px; color: #746e67; text-decoration: underline; text-underline-offset: 3px; }
-.nick-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  margin-top: 4px;
-  color: #746e67;
-  font-size: 13px;
-  text-align: left;
+.nick-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; text-align: left; color: #2c2a27; }
+.nick-name strong,
+.nick-name-hit,
+.nick-name-hit strong,
+.nick-legal {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #2c2a27;
 }
+.nick-name-hit { text-align: left; }
+.nick-put { font-size: 14px; color: #746e67; text-decoration: underline; text-underline-offset: 3px; }
+.nick-rfc { margin: 4px 0 0; color: #2c2a27; font-size: 15px; }
 .nick-ask { flex: 1 0 100%; font-size: 20px; font-weight: 650; color: #2c2a27; }
 .nick-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
 .nick-save {
