@@ -10,10 +10,21 @@ import {
   partyMatches,
   type Party,
 } from '../catalog'
-import { partyLedgers, partyMovements, paymentStatus } from '../domain'
+import { movementRfc, partyLedgers, partyMovements, paymentStatus } from '../domain'
 import { formatDate, money, norm } from '../format'
+import { SEED } from '../seed'
 import { useStore } from '../store'
 import type { PartyNickname, PartyProfile } from '../types'
+
+const demoRfcs = new Set(SEED.invoices.map((invoice) => invoice.rfc))
+for (const movement of SEED.movements) {
+  const rfc = movementRfc(movement, SEED.invoices, SEED.applications)
+  if (rfc) demoRfcs.add(rfc)
+}
+
+function justArrived(rfc: string, nicknames: PartyNickname[]): boolean {
+  return !demoRfcs.has(rfc) && !nicknameOf(rfc, nicknames)
+}
 
 function shownParty(rfc: string, profiles: PartyProfile[]): Party | undefined {
   const base = partyByRfc(rfc)
@@ -87,6 +98,7 @@ function PartyList({ onTour }: { onTour: () => void }) {
               key={row.rfc}
               rfc={row.rfc}
               legal={legalName(row.rfc, row.name, state.partyProfiles)}
+              asking={justArrived(row.rfc, state.nicknames)}
               onOpen={() => openDetail({ type: 'party', id: row.rfc })}
             />
           ))}
@@ -96,12 +108,13 @@ function PartyList({ onTour }: { onTour: () => void }) {
   )
 }
 
-function PartyNick({ rfc, legal, onOpen }: { rfc: string; legal: string; onOpen: () => void }) {
+function PartyNick({ rfc, legal, asking, onOpen }: { rfc: string; legal: string; asking: boolean; onOpen: () => void }) {
   const { state, saveNickname } = useStore()
   const record = nicknameOf(rfc, state.nicknames)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(record?.apodo ?? '')
-  const firstTime = !record
+  const firstTime = asking && !record
+  const hasApodo = Boolean(record?.apodo)
 
   function commit(value: string) {
     const apodo = value.trim()
@@ -155,13 +168,15 @@ function PartyNick({ rfc, legal, onOpen }: { rfc: string; legal: string; onOpen:
           }}
         >
           <strong>{record?.apodo || legal}</strong>
-          {!record?.apodo && <span className="nick-put">poner apodo</span>}
+          {!hasApodo && <span className="nick-put">poner apodo</span>}
         </button>
       )}
-      <button type="button" className="nick-meta" onClick={onOpen}>
-        {legal}
-        <span>{rfc}</span>
-      </button>
+      {(hasApodo || firstTime) && (
+        <button type="button" className="nick-meta" onClick={onOpen}>
+          {legal}
+          <span>{rfc}</span>
+        </button>
+      )}
     </li>
   )
 }
