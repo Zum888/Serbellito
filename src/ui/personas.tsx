@@ -51,7 +51,7 @@ export function Personas() {
 }
 
 function PartyList({ onTour }: { onTour: () => void }) {
-  const { state, openDetail } = useStore()
+  const { state } = useStore()
   const [tab, setTab] = useState<'clientes' | 'proveedores'>('clientes')
   const [query, setQuery] = useState('')
   const direction = tab === 'clientes' ? 'emitida' : 'recibida'
@@ -99,7 +99,6 @@ function PartyList({ onTour }: { onTour: () => void }) {
               rfc={row.rfc}
               legal={legalName(row.rfc, row.name, state.partyProfiles)}
               asking={justArrived(row.rfc, state.nicknames)}
-              onOpen={() => openDetail({ type: 'party', id: row.rfc })}
             />
           ))}
         </ul>
@@ -108,74 +107,96 @@ function PartyList({ onTour }: { onTour: () => void }) {
   )
 }
 
-function PartyNick({ rfc, legal, asking, onOpen }: { rfc: string; legal: string; asking: boolean; onOpen: () => void }) {
+function PartyNick({ rfc, legal, asking }: { rfc: string; legal: string; asking: boolean }) {
   const { state, saveNickname } = useStore()
   const record = nicknameOf(rfc, state.nicknames)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(record?.apodo ?? '')
   const firstTime = asking && !record
   const hasApodo = Boolean(record?.apodo)
+  const showEditor = firstTime || editing
+  const shown = hasApodo ? record?.apodo ?? legal : legal
 
-  function commit(value: string) {
-    const apodo = value.trim()
+  function start(event: { preventDefault: () => void; stopPropagation: () => void }) {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!editing) setDraft(record?.apodo ?? '')
+    setEditing(true)
+  }
+
+  function save(event: { preventDefault: () => void; stopPropagation: () => void }) {
+    event.preventDefault()
+    event.stopPropagation()
+    const apodo = draft.trim()
     saveNickname(rfc, apodo, apodo.length === 0)
     setDraft(apodo)
     setEditing(false)
   }
 
   function onKey(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Escape') {
-      if (firstTime) commit('')
-      else {
-        setDraft(record?.apodo ?? '')
-        setEditing(false)
-      }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      save(event)
+    }
+    if (event.key === 'Escape' && !firstTime) {
+      event.preventDefault()
+      setDraft(record?.apodo ?? '')
+      setEditing(false)
     }
   }
 
   return (
     <li className="nick-row" data-testid={`nick-${rfc}`}>
-      {firstTime || editing ? (
-        <form
-          className="nick-edit"
-          onSubmit={(event) => {
-            event.preventDefault()
-            commit(draft)
-          }}
-        >
+      <div className="nick-name">
+        {hasApodo ? (
+          <button type="button" className="nick-name-hit" onClick={start}>
+            <strong>{shown}</strong>
+          </button>
+        ) : (
+          <strong>{shown}</strong>
+        )}
+        {!hasApodo && !showEditor && (
+          <button type="button" className="nick-put" onClick={start}>
+            poner apodo
+          </button>
+        )}
+      </div>
+      {hasApodo && (
+        <p className="nick-meta">
+          <span>{legal}</span>
+          <span>{rfc}</span>
+        </p>
+      )}
+      {showEditor && (
+        <div className="nick-edit">
           {firstTime && <span className="nick-ask">¿Cómo le llamas?</span>}
           <input
             value={draft}
-            autoFocus={!firstTime}
-            aria-label={firstTime ? '¿Cómo le llamas?' : `Apodo de ${legal}`}
-            placeholder={firstTime ? 'Escribe el apodo y Enter' : 'Apodo'}
+            aria-label={firstTime ? '¿Cómo le llamas?' : `Apodo de ${shown}`}
+            placeholder="Apodo"
+            autoFocus={editing && !firstTime}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKey}
           />
+          <button type="button" className="nick-save" onClick={save}>
+            Guardar
+          </button>
           {firstTime && (
-            <button type="button" className="nick-skip" onClick={() => commit('')}>
+            <button
+              type="button"
+              className="nick-skip"
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                saveNickname(rfc, '', true)
+                setDraft('')
+                setEditing(false)
+              }}
+            >
               Saltar
             </button>
           )}
-        </form>
-      ) : (
-        <button
-          type="button"
-          className="nick-name"
-          onClick={() => {
-            setDraft(record?.apodo ?? '')
-            setEditing(true)
-          }}
-        >
-          <strong>{record?.apodo || legal}</strong>
-          {!hasApodo && <span className="nick-put">poner apodo</span>}
-        </button>
-      )}
-      {(hasApodo || firstTime) && (
-        <button type="button" className="nick-meta" onClick={onOpen}>
-          {legal}
-          <span>{rfc}</span>
-        </button>
+        </div>
       )}
     </li>
   )
@@ -211,17 +232,21 @@ function NicknameTour({ onClose }: { onClose: () => void }) {
           const current = nicknameOf(row.rfc, state.nicknames)?.apodo ?? ''
           return (
             <li key={row.rfc}>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  const input = event.currentTarget.elements.namedItem('apodo') as HTMLInputElement
-                  const apodo = input.value.trim()
-                  if (apodo) saveNickname(row.rfc, apodo, false)
-                }}
-              >
+              <div>
                 <span className="legal">{row.legal}</span>
-                <input name="apodo" defaultValue={current} placeholder="Apodo" aria-label={`Apodo de ${row.legal}`} />
-              </form>
+                <input
+                  name="apodo"
+                  defaultValue={current}
+                  placeholder="Apodo"
+                  aria-label={`Apodo de ${row.legal}`}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return
+                    event.preventDefault()
+                    const apodo = event.currentTarget.value.trim()
+                    if (apodo) saveNickname(row.rfc, apodo, false)
+                  }}
+                />
+              </div>
               <span className="rfc">{row.rfc}</span>
             </li>
           )

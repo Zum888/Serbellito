@@ -815,7 +815,8 @@ tr.fresh { background: #f7f6f4; }
 .nick-list, .nick-tour { list-style: none; margin: 8px 0 0; padding: 0; }
 .nick-row, .nick-tour li { padding: 16px 0; border-bottom: 1px solid #e7e1d8; }
 .nick-name { display: flex; align-items: baseline; gap: 12px; text-align: left; color: #2c2a27; }
-.nick-name strong { font-size: 22px; letter-spacing: -0.02em; }
+.nick-name strong, .nick-name-hit strong { font-size: 22px; letter-spacing: -0.02em; }
+.nick-name-hit { color: inherit; text-align: left; }
 .nick-put { font-size: 14px; color: #746e67; text-decoration: underline; text-underline-offset: 3px; }
 .nick-meta {
   display: flex;
@@ -827,9 +828,24 @@ tr.fresh { background: #f7f6f4; }
   font-size: 13px;
   text-align: left;
 }
-.nick-ask { display: block; margin-bottom: 8px; font-size: 20px; font-weight: 650; color: #2c2a27; }
+.nick-ask { flex: 1 0 100%; font-size: 20px; font-weight: 650; color: #2c2a27; }
+.nick-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+.nick-save {
+  background: #2e69f4;
+  background-image: none;
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-weight: 650;
+  box-shadow: none;
+  filter: none;
+}
+.nick-save:hover { background: #2e69f4; background-image: none; filter: none; }
 .nick-edit input, .nick-tour input {
-  width: min(440px, 100%);
+  width: min(420px, 100%);
+  flex: 1;
+  min-width: 160px;
   height: 40px;
   border: 0;
   border-bottom: 1px solid #d9d1c7;
@@ -840,6 +856,6 @@ tr.fresh { background: #f7f6f4; }
   box-shadow: none;
 }
 .nick-edit input:focus, .nick-tour input:focus { outline: none; border-bottom-color: #2c2a27; }
-.nick-skip { display: block; margin-top: 8px; color: #746e67; font-size: 14px; }
+.nick-skip { color: #746e67; font-size: 14px; }
 .nick-tour .legal { display: block; margin-bottom: 4px; color: #746e67; font-size: 13px; }
 .nick-tour .rfc { display: block; margin-top: 4px; color: #746e67; font-size: 13px; }
