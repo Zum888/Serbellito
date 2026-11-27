@@ -155,7 +155,12 @@ function PartyNick({ rfc, legal, asking }: { rfc: string; legal: string; asking:
         ) : (
           <strong>{shown}</strong>
         )}
-        {hasApodo && <strong className="nick-legal">{legal}</strong>}
+        {hasApodo && (
+          <>
+            <span className="nick-sep" aria-hidden="true">·</span>
+            <strong className="nick-legal">{legal}</strong>
+          </>
+        )}
         {!hasApodo && !showEditor && (
           <button type="button" className="nick-put" onClick={start}>
             poner apodo

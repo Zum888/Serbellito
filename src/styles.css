@@ -814,7 +814,8 @@ tr.fresh { background: #f7f6f4; }
 .nick-primary:hover { background: #2e69f4; background-image: none; filter: none; }
 .nick-list, .nick-tour { list-style: none; margin: 8px 0 0; padding: 0; }
 .nick-row, .nick-tour li { padding: 16px 0; border-bottom: 1px solid #e7e1d8; }
-.nick-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; text-align: left; color: #2c2a27; }
+.nick-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 10px; text-align: left; color: #2c2a27; }
+.nick-sep { color: #2c2a27; font-size: 22px; font-weight: 400; line-height: 1; }
 .nick-name strong,
 .nick-name-hit,
 .nick-name-hit strong,
