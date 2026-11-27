@@ -786,3 +786,60 @@ tr.fresh { background: #f7f6f4; }
 .gate-summary { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 .gate-card-item { border: 1px solid #e6e1da; border-radius: 16px; padding: 14px 16px; background: #fff; }
 .gate-card-item p { margin-top: 4px; color: var(--muted); }
+
+.people { background: #fbf8f4; color: #2c2a27; min-height: 100%; }
+.people h1 { color: #2c2a27; }
+.people .muted { color: #746e67; }
+.people .tabs { border-bottom-color: #e7e1d8; }
+.people .tabs button { color: #746e67; }
+.people .tabs button.on { color: #2c2a27; border-bottom-color: #2c2a27; }
+.people .field input {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #e0d9d0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.nick-primary {
+  background: #2e69f4;
+  background-image: none;
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 650;
+  box-shadow: none;
+  filter: none;
+}
+.nick-primary:hover { background: #2e69f4; background-image: none; filter: none; }
+.nick-list, .nick-tour { list-style: none; margin: 8px 0 0; padding: 0; }
+.nick-row, .nick-tour li { padding: 16px 0; border-bottom: 1px solid #e7e1d8; }
+.nick-name { display: flex; align-items: baseline; gap: 12px; text-align: left; color: #2c2a27; }
+.nick-name strong { font-size: 22px; letter-spacing: -0.02em; }
+.nick-put { font-size: 14px; color: #746e67; text-decoration: underline; text-underline-offset: 3px; }
+.nick-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  margin-top: 4px;
+  color: #746e67;
+  font-size: 13px;
+  text-align: left;
+}
+.nick-ask { display: block; margin-bottom: 8px; font-size: 20px; font-weight: 650; color: #2c2a27; }
+.nick-edit input, .nick-tour input {
+  width: min(440px, 100%);
+  height: 40px;
+  border: 0;
+  border-bottom: 1px solid #d9d1c7;
+  border-radius: 0;
+  background: transparent;
+  font-size: 20px;
+  padding: 0 0 4px;
+  box-shadow: none;
+}
+.nick-edit input:focus, .nick-tour input:focus { outline: none; border-bottom-color: #2c2a27; }
+.nick-skip { display: block; margin-top: 8px; color: #746e67; font-size: 14px; }
+.nick-tour .legal { display: block; margin-bottom: 4px; color: #746e67; font-size: 13px; }
+.nick-tour .rfc { display: block; margin-top: 4px; color: #746e67; font-size: 13px; }

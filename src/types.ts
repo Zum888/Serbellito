@@ -34,6 +34,12 @@ export type PartyProfile = {
   subnombre: string
 }
 
+export type PartyNickname = {
+  rfc: string
+  apodo: string
+  skipped: boolean
+}
+
 export type Invoice = {
   id: string
   direction: Direction
@@ -176,6 +182,7 @@ export type AppState = {
   customCategories: CustomCategory[]
   hiddenCategories: string[]
   partyProfiles: PartyProfile[]
+  nicknames: PartyNickname[]
   messages: ChatMessage[]
   movements: Movement[]
   invoices: Invoice[]

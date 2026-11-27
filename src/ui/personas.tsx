@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import {
   CUSTOMERS,
   EXPENSE_CATEGORIES,
@@ -13,7 +13,7 @@ import {
 import { partyLedgers, partyMovements, paymentStatus } from '../domain'
 import { formatDate, money, norm } from '../format'
 import { useStore } from '../store'
-import type { PartyProfile } from '../types'
+import type { PartyNickname, PartyProfile } from '../types'
 
 function shownParty(rfc: string, profiles: PartyProfile[]): Party | undefined {
   const base = partyByRfc(rfc)
@@ -23,71 +23,195 @@ function shownParty(rfc: string, profiles: PartyProfile[]): Party | undefined {
   return { ...base, razonSocial: edit.razonSocial, nombreComercial: edit.nombreComercial, subnombre: edit.subnombre }
 }
 
-export function Personas() {
-  const { state } = useStore()
-  if (state.detail?.type === 'party') return <PartyDetail rfc={state.detail.id} />
-  return <PartyList />
+function legalName(rfc: string, fallback: string, profiles: PartyProfile[]): string {
+  return shownParty(rfc, profiles)?.razonSocial || fallback
 }
 
-function PartyList() {
+function nicknameOf(rfc: string, nicknames: PartyNickname[]): PartyNickname | undefined {
+  return nicknames.find((item) => item.rfc === rfc)
+}
+
+export function Personas() {
+  const { state } = useStore()
+  const [tour, setTour] = useState(false)
+  if (state.detail?.type === 'party') return <PartyDetail rfc={state.detail.id} />
+  if (tour) return <NicknameTour onClose={() => setTour(false)} />
+  return <PartyList onTour={() => setTour(true)} />
+}
+
+function PartyList({ onTour }: { onTour: () => void }) {
   const { state, openDetail } = useStore()
-  const [tab, setTab] = useState<'cobrar' | 'pagar'>('cobrar')
+  const [tab, setTab] = useState<'clientes' | 'proveedores'>('clientes')
   const [query, setQuery] = useState('')
-  const direction = tab === 'cobrar' ? 'emitida' : 'recibida'
+  const direction = tab === 'clientes' ? 'emitida' : 'recibida'
   const rows = useMemo(() => {
     const q = norm(query)
     return partyLedgers(state.invoices, state.applications, direction).filter((row) => {
       if (!q) return true
       const party = shownParty(row.rfc, state.partyProfiles)
+      const nick = nicknameOf(row.rfc, state.nicknames)
       if (party && partyMatches(party, query)) return true
-      return norm(`${row.name} ${row.rfc}`).includes(q)
+      return norm(`${nick?.apodo ?? ''} ${row.name} ${row.rfc}`).includes(q)
     })
-  }, [direction, query, state.applications, state.invoices, state.partyProfiles])
+  }, [direction, query, state.applications, state.invoices, state.nicknames, state.partyProfiles])
 
   return (
-    <div className="page">
+    <div className="page people">
       <header className="page-head">
         <div>
           <h1>Clientes y proveedores</h1>
-          <p className="muted">Lo que falta por cobrar o por pagar, a partir de las facturas y del RFC.</p>
+          <p className="muted">El apodo es el nombre con el que tú los reconoces.</p>
         </div>
+        <button type="button" className="nick-primary" data-testid="poner-apodos" onClick={onTour}>
+          Poner apodos
+        </button>
       </header>
       <div className="tabs">
-        <button type="button" className={tab === 'cobrar' ? 'on' : ''} onClick={() => setTab('cobrar')}>
-          Por cobrar
+        <button type="button" className={tab === 'clientes' ? 'on' : ''} onClick={() => setTab('clientes')}>
+          Clientes
         </button>
-        <button type="button" className={tab === 'pagar' ? 'on' : ''} onClick={() => setTab('pagar')}>
-          Por pagar
+        <button type="button" className={tab === 'proveedores' ? 'on' : ''} onClick={() => setTab('proveedores')}>
+          Proveedores
         </button>
       </div>
       <label className="field grow cat-search">
         <span>Buscar</span>
-        <input value={query} placeholder="Subnombre, razón social o RFC" onChange={(event) => setQuery(event.target.value)} />
+        <input value={query} placeholder="Apodo, razón social o RFC" onChange={(event) => setQuery(event.target.value)} />
       </label>
       {rows.length === 0 ? (
         <p className="empty">Nadie coincide.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="ledger">
-            <tbody>
-              {rows.map((row) => {
-                const party = shownParty(row.rfc, state.partyProfiles)
-                return (
-                  <tr key={row.rfc} className="click" onClick={() => openDetail({ type: 'party', id: row.rfc })}>
-                    <td>
-                      <span className="who">
-                        <strong>{party?.subnombre ?? row.name}</strong>
-                        <span>{party?.razonSocial ?? row.rfc}</span>
-                      </span>
-                    </td>
-                    <td className="num">{row.pending > 0 ? money(row.pending) : 'Al corriente'}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ul className="nick-list">
+          {rows.map((row) => (
+            <PartyNick
+              key={row.rfc}
+              rfc={row.rfc}
+              legal={legalName(row.rfc, row.name, state.partyProfiles)}
+              onOpen={() => openDetail({ type: 'party', id: row.rfc })}
+            />
+          ))}
+        </ul>
       )}
+    </div>
+  )
+}
+
+function PartyNick({ rfc, legal, onOpen }: { rfc: string; legal: string; onOpen: () => void }) {
+  const { state, saveNickname } = useStore()
+  const record = nicknameOf(rfc, state.nicknames)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(record?.apodo ?? '')
+  const firstTime = !record
+
+  function commit(value: string) {
+    const apodo = value.trim()
+    saveNickname(rfc, apodo, apodo.length === 0)
+    setDraft(apodo)
+    setEditing(false)
+  }
+
+  function onKey(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      if (firstTime) commit('')
+      else {
+        setDraft(record?.apodo ?? '')
+        setEditing(false)
+      }
+    }
+  }
+
+  return (
+    <li className="nick-row" data-testid={`nick-${rfc}`}>
+      {firstTime || editing ? (
+        <form
+          className="nick-edit"
+          onSubmit={(event) => {
+            event.preventDefault()
+            commit(draft)
+          }}
+        >
+          {firstTime && <span className="nick-ask">¿Cómo le llamas?</span>}
+          <input
+            value={draft}
+            autoFocus={!firstTime}
+            aria-label={firstTime ? '¿Cómo le llamas?' : `Apodo de ${legal}`}
+            placeholder={firstTime ? 'Escribe el apodo y Enter' : 'Apodo'}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onKey}
+          />
+          {firstTime && (
+            <button type="button" className="nick-skip" onClick={() => commit('')}>
+              Saltar
+            </button>
+          )}
+        </form>
+      ) : (
+        <button
+          type="button"
+          className="nick-name"
+          onClick={() => {
+            setDraft(record?.apodo ?? '')
+            setEditing(true)
+          }}
+        >
+          <strong>{record?.apodo || legal}</strong>
+          {!record?.apodo && <span className="nick-put">poner apodo</span>}
+        </button>
+      )}
+      <button type="button" className="nick-meta" onClick={onOpen}>
+        {legal}
+        <span>{rfc}</span>
+      </button>
+    </li>
+  )
+}
+
+function NicknameTour({ onClose }: { onClose: () => void }) {
+  const { state, saveNickname } = useStore()
+  const rows = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const direction of ['emitida', 'recibida'] as const) {
+      for (const row of partyLedgers(state.invoices, state.applications, direction)) {
+        if (!seen.has(row.rfc)) seen.set(row.rfc, legalName(row.rfc, row.name, state.partyProfiles))
+      }
+    }
+    return [...seen.entries()]
+      .map(([rfc, legal]) => ({ rfc, legal }))
+      .sort((a, b) => a.legal.localeCompare(b.legal, 'es-MX'))
+  }, [state.applications, state.invoices, state.partyProfiles])
+
+  return (
+    <div className="page people" data-testid="nick-tour">
+      <header className="page-head">
+        <div>
+          <h1>Poner apodos</h1>
+          <p className="muted">Un campo por empresa. Enter guarda. Sin el resto de la ficha.</p>
+        </div>
+        <button type="button" className="nick-primary" onClick={onClose}>
+          Listo
+        </button>
+      </header>
+      <ul className="nick-tour">
+        {rows.map((row) => {
+          const current = nicknameOf(row.rfc, state.nicknames)?.apodo ?? ''
+          return (
+            <li key={row.rfc}>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  const input = event.currentTarget.elements.namedItem('apodo') as HTMLInputElement
+                  const apodo = input.value.trim()
+                  if (apodo) saveNickname(row.rfc, apodo, false)
+                }}
+              >
+                <span className="legal">{row.legal}</span>
+                <input name="apodo" defaultValue={current} placeholder="Apodo" aria-label={`Apodo de ${row.legal}`} />
+              </form>
+              <span className="rfc">{row.rfc}</span>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

@@ -19,6 +19,7 @@ import type {
   Movement,
   OnboardingProfile,
   OnboardingState,
+  PartyNickname,
   PartyProfile,
   RouteName,
 } from './types'
@@ -145,6 +146,7 @@ function freshState(): AppState {
     customCategories: [],
     hiddenCategories: [],
     partyProfiles: [],
+    nicknames: [],
     messages: [],
     movements: SEED.movements,
     invoices: SEED.invoices,
@@ -173,6 +175,7 @@ function loadState(): AppState {
     if (!Array.isArray(parsed.customCategories)) parsed.customCategories = []
     if (!Array.isArray(parsed.hiddenCategories)) parsed.hiddenCategories = []
     if (!Array.isArray(parsed.partyProfiles)) parsed.partyProfiles = []
+    if (!Array.isArray(parsed.nicknames)) parsed.nicknames = []
     parsed.onboarding = normalizeOnboarding(parsed.onboarding)
     parsed.messages = []
     parsed.guided = null
@@ -210,6 +213,7 @@ type Action =
   | { type: 'delete-category'; name: string }
   | { type: 'delete-rule'; rfc: string }
   | { type: 'save-profile'; profile: PartyProfile }
+  | { type: 'nickname'; rfc: string; apodo: string; skipped: boolean }
   | { type: 'confirm'; movementId: string; invoiceIds: string[] }
   | { type: 'undo'; movementId: string }
   | { type: 'complemento'; invoiceId: string }
@@ -301,6 +305,12 @@ function reducer(state: AppState, action: Action): AppState {
       const profile = cleanProfile(action.profile)
       if (!profile) return state
       return { ...state, partyProfiles: [...state.partyProfiles.filter((item) => item.rfc !== profile.rfc), profile] }
+    }
+    case 'nickname': {
+      const apodo = action.apodo.trim()
+      const next: PartyNickname = { rfc: action.rfc, apodo, skipped: action.skipped || apodo.length === 0 }
+      if (!action.rfc) return state
+      return { ...state, nicknames: [...state.nicknames.filter((item) => item.rfc !== action.rfc), next] }
     }
     case 'confirm': {
       const movement = state.movements.find((item) => item.id === action.movementId)
@@ -475,6 +485,7 @@ type StoreValue = {
   deleteCategory: (name: string) => void
   deleteRule: (rfc: string) => void
   saveProfile: (profile: PartyProfile) => void
+  saveNickname: (rfc: string, apodo: string, skipped?: boolean) => void
   openParty: (direction: 'recibida' | 'emitida', name: string) => void
   confirmReconcile: (movementId: string, invoiceIds: string[]) => void
   undoReconcile: (movementId: string) => void
@@ -595,6 +606,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteCategory: (name) => dispatch({ type: 'delete-category', name }),
       deleteRule: (rfc) => dispatch({ type: 'delete-rule', rfc }),
       saveProfile: (profile) => dispatch({ type: 'save-profile', profile }),
+      saveNickname: (rfc, apodo, skipped = false) => dispatch({ type: 'nickname', rfc, apodo, skipped }),
       openParty: (direction, name) => dispatch({ type: 'party', direction, name }),
       confirmReconcile: (movementId, invoiceIds) => dispatch({ type: 'confirm', movementId, invoiceIds }),
       undoReconcile: (movementId) => dispatch({ type: 'undo', movementId }),
